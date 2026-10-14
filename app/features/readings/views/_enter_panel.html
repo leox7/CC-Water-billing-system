@@ -1,0 +1,130 @@
+{#
+  The reading form, or after a save, what happened and where to go next. htmx swaps this whole
+  panel (hx-target, outerHTML), so a refused save comes back here with the message beside the
+  field and what was typed kept.
+  Needs `entry`, `form`, `today`; after a save `result` and `next_customer`; after a refused
+  save `error`.
+#}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes, submit_button with context %}
+{% set customer = entry.customer %}
+{% set full_name = customer.first_name ~ " " ~ customer.last_name %}
+<section class="card reading-panel" id="reading-panel" aria-label="Reading for {{ full_name }}">
+  {% if result %}
+    {% set outcome_start = "Reading saved." %}
+    {% include "readings/views/_outcome.html" %}
+    <div class="form-actions">
+      {% if next_customer %}
+      {# autofocus: htmx puts the focus here after the swap, so Enter moves straight on #}
+      <a class="button button-primary" href="/readings/new/{{ next_customer.customer_id }}" autofocus>
+        Next customer: {{ next_customer.first_name }} {{ next_customer.last_name }}</a>
+      <a class="button button-secondary" href="/readings">Back to list</a>
+      {% else %}
+      <a class="button button-primary" href="/readings" autofocus>Back to list</a>
+      {% endif %}
+    </div>
+    {% if not next_customer %}
+    <p class="text-help">Every active customer has a reading for this month.</p>
+    {% endif %}
+
+  {% elif customer.status != "active" %}
+    <div class="message message-warning">
+      {{ icon("alert-circle", 20) }}
+      <div class="message-text">{{ full_name }} is inactive, so no bill can be made. Reactivate the customer first, on the Customers screen.</div>
+    </div>
+    <div class="form-actions"><a class="button button-secondary" href="/customers">Go to customers</a></div>
+
+  {% else %}
+    {% if entry.this_month %}
+    <div class="message message-info">
+      {{ icon("info-circle", 20) }}
+      <div class="message-text">
+        {{ customer.first_name }} already has a reading for {{ entry.this_month.billing_period|period_label }}: <span class="mono">{{ entry.this_month.current_reading|plain_number }}</span>.
+        <a href="/readings/{{ entry.this_month.reading_id }}/edit">Fix that reading</a> to change it.
+      </div>
+    </div>
+    {% endif %}
+
+    <form class="form reading-form" method="post" action="/readings"
+          hx-post="/readings" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#reading-panel" hx-swap="outerHTML"
+          {# the live inputs inside send their own small requests, and must not inherit the button guard #}
+          hx-disinherit="hx-disabled-elt">
+      {{ csrf_field(request) }}
+      <input type="hidden" name="customer_id" value="{{ customer.customer_id }}">
+      {% if error and not error.field %}
+        {% set errors = [error] %}
+        {% include "partials/form_errors.html" %}
+      {% endif %}
+
+      {% if entry.is_first %}
+      {# CUS-5: the first reading in the system starts from the paper records #}
+      <div class="message message-info">
+        {{ icon("info-circle", 20) }}
+        <div class="message-text">This is {{ customer.first_name }}'s first reading in the app. Type the last meter number and what they still owe from your paper records. Leave 0 for a new meter or nothing owed.</div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="field-previous_reading">Previous reading</label>
+        {# changing it asks the server for the units again, like the reading box #}
+        <input class="input input-large" type="text" id="field-previous_reading" name="previous_reading"
+               value="{{ form.previous_reading or '' }}" inputmode="decimal" autocomplete="off"
+               hx-get="/readings/preview" hx-trigger="input changed delay:300ms" hx-target="#units-line"
+               hx-swap="outerHTML" hx-include="[name=customer_id],[name=current_reading]" hx-sync="this:replace"
+               {{- invalid_attributes("previous_reading", "help-previous_reading") }}>
+        <p class="field-help" id="help-previous_reading">The last meter number from your paper records.</p>
+        {{ field_error("previous_reading") }}
+      </div>
+      {% else %}
+      {# RD-2: filled in for you, never typed #}
+      <div class="last-reading">
+        <p class="text-label">Last month</p>
+        <p class="last-reading-figure mono">{{ entry.previous|plain_number }}</p>
+        <p class="text-help">Filled in for you.</p>
+      </div>
+      {% endif %}
+
+      <div class="field">
+        <label class="field-label" for="field-current_reading">This month's reading <span class="field-required">required</span></label>
+        {#
+          As the number is typed, htmx asks the server for the units after a short pause
+          (hx-trigger) and puts the answer in the line under the field (hx-target). hx-include
+          adds the customer, which sits outside this box. The rule stays on the server.
+        #}
+        <input class="input input-large" type="text" id="field-current_reading" name="current_reading"
+               value="{{ form.current_reading or '' }}" inputmode="decimal" autocomplete="off" placeholder="For example 224"
+               autofocus hx-get="/readings/preview" hx-trigger="input changed delay:300ms" hx-target="#units-line"
+               hx-swap="outerHTML" hx-include="[name=customer_id],[name=previous_reading]" hx-sync="this:replace"
+               {{- invalid_attributes("current_reading", "units-line") }}>
+        {# a refused save shows its message under the field, so the live line starts empty #}
+        {% with error = none %}{% include "readings/views/_units_line.html" %}{% endwith %}
+        {{ field_error("current_reading") }}
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="field-reading_date">Reading date</label>
+        {# when the date changes, htmx asks the server which month it falls in, like the units line #}
+        <input class="input reading-date" type="date" id="field-reading_date" name="reading_date"
+               value="{{ form.reading_date or '' }}" max="{{ today.isoformat() }}"
+               hx-get="/readings/period" hx-trigger="input changed" hx-target="#period-line" hx-swap="outerHTML"
+               hx-sync="this:replace"
+               {{- invalid_attributes("reading_date", "help-reading_date period-line") }}>
+        <p class="field-help" id="help-reading_date">The day the meter was read. The month of this date is the bill's month.</p>
+        {# a refused save shows its message under the date, so this line starts empty then #}
+        {% with error = none %}{% include "readings/views/_period_line.html" %}{% endwith %}
+        {{ field_error("reading_date") }}
+      </div>
+
+      {% if entry.is_first %}
+      <div class="field">
+        <label class="field-label" for="field-opening_balance">Opening balance (Ksh)</label>
+        <input class="input" type="text" id="field-opening_balance" name="opening_balance"
+               value="{{ form.opening_balance or '' }}" inputmode="decimal" autocomplete="off"
+               {{- invalid_attributes("opening_balance", "help-opening_balance") }}>
+        <p class="field-help" id="help-opening_balance">What {{ customer.first_name }} still owed before the app. It is added to this first bill as Previous Balance.</p>
+        {{ field_error("opening_balance") }}
+      </div>
+      {% endif %}
+
+      {{ submit_button("Save reading", "Saving...", "check", "button-wide") }}
+    </form>
+  {% endif %}
+</section>

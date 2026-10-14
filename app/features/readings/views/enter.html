@@ -1,0 +1,39 @@
+{#
+  The Readings screen, steps 2 to 5: enter one customer's reading (DESIGN_SYSTEM.md section 8,
+  PRD RD-1 to RD-6). The panel holds the form, and after a save, what happened.
+  Needs `user`, `entry` (ReadingEntry), `form`, `today`, and `deleted` after a reading was
+  deleted. After a save, `result` and `next_customer`; after a refused save, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% set customer = entry.customer %}
+
+{% block title %}Reading for {{ customer.first_name }} {{ customer.last_name }}{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/readings/readings.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/readings">{{ icon("arrow-left", 24) }}<span>Readings</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">Enter reading</p>
+    <h1>{{ customer.first_name }} {{ customer.last_name }}</h1>
+    <p class="text-help"><span class="mono">{{ customer.meter_number }}</span> · {{ customer.location }}</p>
+  </div>
+  <a class="button button-secondary page-back" href="/readings">{{ icon("arrow-left") }}Back to readings</a>
+</div>
+
+<div class="messages" role="status">
+  {% if deleted %}
+  <div class="message message-success" data-auto-dismiss>
+    {{ icon("circle-check", 20) }}
+    <div class="message-text">Reading deleted. You can enter it again.</div>
+    <button class="message-close" type="button" data-dismiss-message>Close<span class="visually-hidden"> message</span></button>
+  </div>
+  {% endif %}
+</div>
+
+{% include "readings/views/_enter_panel.html" %}
+{% endblock %}

@@ -1,0 +1,104 @@
+{#
+  The Readings screen, step 1: pick a customer (DESIGN_SYSTEM.md section 8). The customers
+  not read this month come first. Below: the recent readings, each with Fix.
+  Needs `user`, `rows` (CustomerToRead), `search`, `period`, `progress` (read, active),
+  `recent` and `list_limit`. After a refused search, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import invalid_attributes with context %}
+
+{% block title %}Readings{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/readings/readings.css">{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">{{ period|period_label if period }} · {{ progress[0] }} of {{ progress[1] }} read</p>
+    <h1>Readings</h1>
+  </div>
+</div>
+
+<div class="stack">
+  <section class="card" aria-labelledby="pick-title">
+    <h2 class="card-title" id="pick-title">Pick a customer</h2>
+    <p class="card-description">Work down the meter reader's photos. Customers not read this month are at the top.</p>
+
+    {#
+      The search box works like the one on the Customers screen: typing searches after a short
+      pause, and hx-select takes only the list out of the answer and puts it in place.
+    #}
+    <form class="search-form" method="get" action="/readings" role="search"
+          hx-get="/readings" hx-trigger="input changed delay:300ms from:#field-search, submit"
+          hx-target="#pick-results" hx-select="#pick-results" hx-swap="outerHTML"
+          hx-select-oob="#search-status:innerHTML" hx-push-url="true" hx-indicator="#search-working">
+      <div class="field">
+        <label class="field-label" for="field-search">Search by name, meter number or location</label>
+        <div class="search-row">
+          <input class="input" type="search" id="field-search" name="search" value="{{ search }}" maxlength="100"
+                 placeholder="For example Mary" autocomplete="off" spellcheck="false"
+                 {{- invalid_attributes("search") }}>
+          <button class="button button-secondary" type="submit">{{ icon("search") }}Search</button>
+        </div>
+      </div>
+      <p class="search-status text-help" id="search-status" role="status">
+        {%- if search and not error %}{{ rows|length }} {{ "customer" if rows|length == 1 else "customers" }} found.{% endif -%}
+      </p>
+      <div class="htmx-indicator" id="search-working"><p class="loading-placeholder">Searching...</p></div>
+    </form>
+
+    <div id="pick-results">
+      {% if error %}
+        {% set errors = [error] %}
+        {% include "partials/form_errors.html" %}
+      {% endif %}
+      {% if rows %}
+      <table class="table pick-table">
+        <thead>
+          <tr>
+            <th scope="col">Customer</th>
+            <th scope="col">This month</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% set customer = row.customer %}
+          <tr>
+            <td>
+              {# the whole row opens the reading form (stretched-link) #}
+              <a class="cell-title stretched-link" href="/readings/new/{{ customer.customer_id }}">{{ customer.first_name }} {{ customer.last_name }}</a>
+              <span class="cell-sub"><span class="mono">{{ customer.meter_number }}</span> · {{ customer.location }}</span>
+            </td>
+            <td class="cell-end">
+              {% if row.read_this_month %}
+              <span class="read-marker read-marker-done">{{ icon("check", 16) }}Read this month</span>
+              {% else %}
+              <span class="read-marker">Not read yet</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if rows|length >= list_limit %}
+      <p class="list-note text-help">Showing the first {{ list_limit }} customers. Search to find the others.</p>
+      {% endif %}
+      {% elif search and not error %}
+      <div class="empty-state">
+        {{ icon("search", 32) }}
+        <p>No active customers match "{{ search }}". Check the spelling, or search by meter number or location.</p>
+        <a class="button button-secondary" href="/readings">Show all customers</a>
+      </div>
+      {% elif not error %}
+      <div class="empty-state">
+        {{ icon("users", 32) }}
+        <p>No active customers yet. Add a customer to start entering readings.</p>
+        <a class="button button-secondary" href="/customers/new">{{ icon("plus") }}Add customer</a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {% include "readings/views/_recent_list.html" %}
+</div>
+{% endblock %}

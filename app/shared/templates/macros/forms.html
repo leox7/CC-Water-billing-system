@@ -1,0 +1,56 @@
+{#
+  Small helpers every form uses, so a field looks and behaves the same everywhere
+  (DESIGN_SYSTEM.md 7.2, section 9 and section 11).
+
+  Import them "with context": that lets the macros see `error`, the failure that
+  render_error() passed to the page, so each field can show its own message.
+    {% from "macros/forms.html" import field_error, invalid_attributes, submit_button, password_input with context %}
+#}
+{% from "macros/icons.html" import icon %}
+
+{# The message under a field, when the failure belongs to that field #}
+{% macro field_error(name) -%}
+  {% if error and error.field == name %}
+  <p class="field-error" id="field-{{ name }}-error">{{ icon("alert-circle", 16) }}<span>{{ error.message }}</span></p>
+  {% endif %}
+{%- endmacro %}
+
+{#
+  Ties an input to its help text (help_id) and, when it is wrong, to its message, and marks
+  it as wrong for screen readers. Gives one aria-describedby holding both ids.
+#}
+{% macro invalid_attributes(name, help_id=none) -%}
+{%- set has_error = error and error.field == name -%}
+{%- set described_by = [] -%}
+{%- if help_id %}{% set _ = described_by.append(help_id) %}{% endif -%}
+{%- if has_error %}{% set _ = described_by.append("field-" ~ name ~ "-error") %}{% endif -%}
+{%- if has_error %} aria-invalid="true"{% endif -%}
+{%- if described_by %} aria-describedby="{{ described_by|join(' ') }}"{% endif -%}
+{%- endmacro %}
+
+{#
+  The main button of a form. While the form is being sent it shows the working word and a
+  spinner, keeps its width, and cannot be pressed again (section 9, MON-2). Both words sit
+  in the same place, so the button never changes size.
+#}
+{% macro submit_button(label, working_label, icon_name=none, extra_class="") -%}
+<button class="button button-primary {{ extra_class }}" type="submit">
+  <span class="button-label">
+    <span>{% if icon_name %}{{ icon(icon_name) }}{% endif %}{{ label }}</span>
+    <span class="button-working">{{ working_label }}</span>
+  </span>
+</button>
+{%- endmacro %}
+
+{#
+  A password box with a Show button (app.js swaps the box between hidden and shown text).
+  The password is never put back into the page after a failed try. input_id is only needed
+  when the same box appears more than once on a page (one per row, in a dialog).
+#}
+{% macro password_input(name, autocomplete, help_id=none, input_id=none) -%}
+{%- set box_id = input_id or "field-" ~ name -%}
+<div class="password-field">
+  <input class="input" type="password" id="{{ box_id }}" name="{{ name }}" autocomplete="{{ autocomplete }}"{{ invalid_attributes(name, help_id) }}>
+  <button class="password-toggle" type="button" data-toggle-password="{{ box_id }}" aria-controls="{{ box_id }}" aria-pressed="false">Show</button>
+</div>
+{%- endmacro %}

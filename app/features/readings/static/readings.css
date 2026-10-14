@@ -1,0 +1,123 @@
+/* The Readings screen: the customer picker, the reading form and the Fix form.
+   Everything else comes from components.css. */
+
+/* "Read this month" or "Not read yet": a word, and a check when done, never colour alone */
+.read-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-pill);
+}
+
+.read-marker-done {
+  color: var(--success-text);
+  background: var(--success-bg);
+}
+
+.pick-table th:last-child,
+.pick-table .cell-end {
+  text-align: right;
+}
+
+.recent-title {
+  margin-bottom: var(--space-4);
+}
+
+/* The reading form: one column, the save button at the bottom */
+.reading-panel {
+  max-width: 640px;
+}
+
+.reading-panel > * + * {
+  margin-top: var(--space-5);
+}
+
+/* "Last month: 200", read only and filled in for you (7.2) */
+.last-reading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-control);
+}
+
+.last-reading-figure {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* "That is 24 units used." Keeps its height, so the form does not jump while typing */
+.units-line {
+  min-height: 24px;
+  color: var(--text-primary);
+}
+
+.units-problem {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font-size: 14px;
+  color: var(--danger-text);
+}
+
+.units-problem .icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.reading-date {
+  max-width: 240px;
+}
+
+/* A short list of figures: label on the left, figure on the right */
+.outcome-facts {
+  display: flex;
+  flex-direction: column;
+}
+
+.outcome-facts > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.outcome-facts > div:last-child {
+  border-bottom: 0;
+}
+
+.outcome-facts dt {
+  color: var(--text-secondary);
+}
+
+.outcome-facts dd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  /* a figure stays on the right, even when a long label pushes it to its own line */
+  margin-left: auto;
+}
+
+@media (max-width: 767px) {
+  .reading-date {
+    max-width: none;
+  }
+
+  /* Next customer and Back to list are full width and stacked, in thumb reach */
+  .reading-panel .form-actions .button {
+    width: 100%;
+  }
+}

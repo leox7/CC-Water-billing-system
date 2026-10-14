@@ -1,0 +1,26 @@
+{#
+  What htmx gets back after deactivate, reactivate or remove. The main part replaces the
+  row the form pointed at (hx-target). The parts marked hx-swap-oob ("out of band") go to
+  the places named by their ids instead: the message at the top and the active count.
+  Each out-of-band part is wrapped in <template>, so the browser keeps it as it is,
+  wherever it sits in the answer. htmx looks inside templates for out-of-band parts.
+  - row: the changed customer (missing after a remove, so the row is simply removed)
+  - message: what happened
+  - active_count: how many customers are active now
+#}
+{% from "macros/icons.html" import icon %}
+{% if row %}
+  {% with row_changed = true %}{% include "customers/views/_row.html" %}{% endwith %}
+{% endif %}
+<template>
+  <p class="text-label" id="active-count" hx-swap-oob="true">{{ active_count }} active</p>
+</template>
+<template>
+  <div id="customer-messages" class="messages" role="status" hx-swap-oob="innerHTML">
+    <div class="message message-success" data-auto-dismiss>
+      {{ icon("circle-check", 20) }}
+      <div class="message-text">{{ message }}</div>
+      <button class="message-close" type="button" data-dismiss-message>Close<span class="visually-hidden"> message</span></button>
+    </div>
+  </div>
+</template>

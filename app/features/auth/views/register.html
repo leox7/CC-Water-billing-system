@@ -1,0 +1,66 @@
+{#
+  The register page. It is only open while no account exists, and the account made here
+  becomes the owner (PRD AUTH-2). After that the controller sends /register to /login.
+  From the controller: `form` (what was typed), and after a failed try `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes, submit_button, password_input with context %}
+
+{% block title %}Create the owner account{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/auth/auth.css">{% endblock %}
+
+{% block content %}
+<div class="auth-layout">
+  {% include "auth/views/_brand.html" %}
+
+  <div class="auth-panel">
+    <div class="auth-form-area">
+      <div class="auth-heading">
+        <h1>Create the owner account</h1>
+        <p class="text-help">This first account belongs to the business owner. Family members are added later, from the Account screen.</p>
+      </div>
+
+      {% if error and not error.field %}
+        {% set errors = [error] %}
+        {% include "partials/form_errors.html" %}
+      {% endif %}
+
+      <form class="form" method="post" action="/register">
+        {{ csrf_field(request) }}
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="field-first_name">First name <span class="field-required">required</span></label>
+            <input class="input" type="text" id="field-first_name" name="first_name" value="{{ form.first_name if form else '' }}"
+                   autocomplete="given-name"{{ invalid_attributes("first_name") }}>
+            {{ field_error("first_name") }}
+          </div>
+          <div class="field">
+            <label class="field-label" for="field-last_name">Last name <span class="field-required">required</span></label>
+            <input class="input" type="text" id="field-last_name" name="last_name" value="{{ form.last_name if form else '' }}"
+                   autocomplete="family-name"{{ invalid_attributes("last_name") }}>
+            {{ field_error("last_name") }}
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="field-identifier">Phone number or email <span class="field-required">required</span></label>
+          <input class="input" type="text" id="field-identifier" name="identifier" value="{{ form.identifier if form else '' }}"
+                 placeholder="0722 123 456 or you@example.com" autocomplete="username" autocapitalize="none" spellcheck="false"
+                 {{- invalid_attributes("identifier", "identifier-help") }}>
+          <p class="field-help" id="identifier-help">You will use this to sign in.</p>
+          {{ field_error("identifier") }}
+        </div>
+        <div class="field">
+          <label class="field-label" for="field-password">Password <span class="field-required">required</span></label>
+          {{ password_input("password", "new-password", "password-help") }}
+          <p class="field-help" id="password-help">At least 8 characters. Not your phone number.</p>
+          {{ field_error("password") }}
+        </div>
+        {{ submit_button("Create account", "Creating account...", extra_class="button-wide") }}
+      </form>
+
+      <p class="auth-switch text-help">Already have an account? <a href="/login">Sign in</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

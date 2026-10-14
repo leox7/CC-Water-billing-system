@@ -1,0 +1,29 @@
+/* The Account screen. Everything else comes from components.css. */
+
+/* Messages after a change. Takes no room while there is nothing to say. */
+.account-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.account-messages:empty {
+  display: none;
+}
+
+/* The row's actions wrap onto a second line when there is not room for all three */
+.row-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.row-actions .button {
+  padding: 0 var(--space-3);
+}
+
+@media (max-width: 767px) {
+  .row-actions {
+    justify-content: flex-start;
+  }
+}

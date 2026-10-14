@@ -1,0 +1,18 @@
+/* The Customers screen and the customer form. Everything else comes from components.css. */
+
+/* The row's actions wrap onto a second line when there is not room for all of them */
+.row-actions {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.row-actions .button {
+  padding: 0 var(--space-3);
+}
+
+@media (max-width: 767px) {
+  .row-actions {
+    justify-content: flex-start;
+  }
+}

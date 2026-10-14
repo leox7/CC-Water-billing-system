@@ -1,0 +1,421 @@
+/* Reset, base typography and the app shell (DESIGN_SYSTEM.md sections 3, 6, 7.7 and 10).
+   Colours, spacing and sizes all come from tokens.css. The one breakpoint is 768px:
+   desktop at 768px and wider, mobile below. */
+
+/* ---- fonts: self-hosted, only the weights in use (section 12) ---- */
+
+@font-face {
+  font-family: "Inter";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/static/shared/fonts/inter-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/static/shared/fonts/inter-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/static/shared/fonts/inter-latin-700-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/static/shared/fonts/jetbrains-mono-latin-600-normal.woff2") format("woff2");
+}
+
+/* ---- reset ---- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+body,
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ---- base typography (section 3) ---- */
+
+body {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-page);
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+a:active {
+  color: var(--accent-active);
+}
+
+/* Money and meter numbers (section 3). Always put the figure inside this class.
+   They never break across two lines. */
+.mono {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Help text and captions */
+.text-help {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* Small uppercase label above a title or figure */
+.text-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Kept for screen readers only */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- focus (section 9): always visible, never removed ---- */
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- motion (section 11): off for people who ask for it ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- skip link (section 11): the first thing a keyboard user reaches ---- */
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  padding: var(--space-3) var(--space-4);
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* ---- app shell, desktop: sidebar on the left, content on the right ---- */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: var(--space-6) var(--space-4);
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-brand {
+  display: block;
+  padding: 0 var(--space-2) var(--space-6);
+}
+
+.sidebar-brand img {
+  width: 104px;
+  height: auto;
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  font-weight: 400;
+  text-decoration: none;
+  color: var(--text-secondary);
+  border-radius: var(--radius-control);
+  transition: background-color 150ms ease;
+}
+
+.nav-item:hover {
+  color: var(--text-secondary);
+  background: var(--bg-surface-muted);
+}
+
+.nav-item[aria-current="page"] {
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--accent-soft);
+}
+
+/* the 3px accent bar on the active item */
+.nav-item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  left: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-user {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.content {
+  min-width: 0;
+  padding: var(--space-8);
+  overflow-wrap: break-word;
+}
+
+.content-inner {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  /* Lets a component ask how wide the content column is, not how wide the screen is
+     (tables turn into cards when it is narrow, see components.css) */
+  container-type: inline-size;
+  container-name: page;
+}
+
+/* The mobile bars do not exist on desktop */
+.topbar,
+.bottom-nav {
+  display: none;
+}
+
+/* ---- app shell, mobile: top bar, content, fixed bottom tab bar ---- */
+
+@media (max-width: 767px) {
+  .app-shell {
+    display: block;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 56px;
+    padding: 0 var(--space-4);
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap-min);
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--text-primary);
+  }
+
+  .topbar-brand img {
+    width: auto;
+    height: 32px;
+  }
+
+  /* Back button and Account button: at least 44px to tap */
+  .topbar-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--accent);
+    border-radius: var(--radius-small);
+  }
+
+  .content {
+    padding: var(--space-4);
+    /* never hidden behind the fixed bottom bar */
+    padding-bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom) + var(--space-4));
+  }
+
+  .bottom-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    display: flex;
+    height: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+  }
+
+  .tab {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    min-width: 0;
+    min-height: var(--tap-min);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.3;
+    text-decoration: none;
+    color: var(--text-secondary);
+  }
+
+  .tab:hover {
+    color: var(--text-secondary);
+  }
+
+  .tab[aria-current="page"] {
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+}

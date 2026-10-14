@@ -1,0 +1,128 @@
+{#
+  The Fix form, or after a save, what happened. htmx swaps this whole panel.
+  Which case runs is decided by readings/service.py; this only says it in plain words:
+  - no bill, or a bill not sent and not paid: the reading and its bill are made again, and
+    the reading may also be deleted;
+  - a bill sent or paid: the reading is changed in place and the bill recalculated. It is
+    never deleted (COR-1).
+  Needs `fix`, `customer`, `period` and `form`; after a save `result`; after a refused save `error`.
+#}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes, submit_button with context %}
+{% set full_name = customer.first_name ~ " " ~ customer.last_name %}
+{% set in_place = fix.case == "bill sent or paid" %}
+<section class="card reading-panel" id="fix-panel" aria-label="Fix the reading for {{ full_name }}">
+  {% if result %}
+    {% set outcome_start = "Reading corrected." %}
+    {% set sms_kind = "correction" if in_place and fix.sms_was_sent else "bill" %}
+    {% include "readings/views/_outcome.html" %}
+    {% if in_place %}
+    <p class="text-help">The bill was recalculated. Payments already recorded are kept.</p>
+    {% else %}
+    <p class="text-help">The old reading and its bill were replaced by new ones.</p>
+    {% endif %}
+    <div class="form-actions">
+      <a class="button button-primary" href="/readings" autofocus>Back to readings</a>
+    </div>
+
+  {% else %}
+    {% set reading = fix.reading %}
+    <dl class="outcome-facts">
+      <div><dt>Previous reading</dt><dd class="mono">{{ reading.previous_reading|plain_number }}</dd></div>
+      <div><dt>Saved reading</dt><dd class="mono">{{ reading.current_reading|plain_number }}</dd></div>
+      <div><dt>Units used</dt><dd class="mono">{{ reading.units_consumed|plain_number }} m3</dd></div>
+      {% if fix.bill %}
+      <div><dt>Bill</dt><dd><span class="mono">{{ fix.bill.total_due|ksh }}</span>
+        {% with status = fix.bill.status %}{% include "partials/status_badge.html" %}{% endwith %}</dd></div>
+      {% endif %}
+    </dl>
+
+    {% if customer.status != "active" %}
+    {# COR-5 #}
+    <div class="message message-warning">
+      {{ icon("alert-circle", 20) }}
+      <div class="message-text">Reactivate the customer first. {{ full_name }} is inactive, so this reading cannot be changed. Reactivate on the Customers screen, fix the reading, then deactivate again if needed.</div>
+    </div>
+    {% elif not fix.is_latest %}
+    {# COR-3 #}
+    <div class="message message-info">
+      {{ icon("info-circle", 20) }}
+      <div class="message-text">Only the latest reading can be corrected. A newer reading for {{ customer.first_name }} was entered after this one.</div>
+    </div>
+    {% else %}
+    <div class="message message-info">
+      {{ icon("info-circle", 20) }}
+      <div class="message-text">
+        {% if in_place %}
+          The bill was already {{ "sent" if fix.sms_was_sent else "paid in part or in full" }}. Saving changes this reading and recalculates the bill. Payments already recorded are kept, and {{ customer.first_name }} gets {{ "a correction SMS" if fix.sms_was_sent else "the bill SMS" }}.
+        {% elif fix.bill %}
+          The bill for this reading was not sent and has no payment. Saving replaces the reading and its bill, and the new bill is sent to {{ customer.first_name }}.
+        {% else %}
+          This reading has no bill yet. Saving replaces it, and the bill is made and sent to {{ customer.first_name }}.
+        {% endif %}
+      </div>
+    </div>
+
+    <form class="form reading-form" method="post" action="/readings/{{ reading.reading_id }}/edit"
+          hx-post="/readings/{{ reading.reading_id }}/edit" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#fix-panel" hx-swap="outerHTML">
+      {{ csrf_field(request) }}
+      {% if error and not error.field %}
+        {% set errors = [error] %}
+        {% include "partials/form_errors.html" %}
+      {% endif %}
+      <div class="field">
+        <label class="field-label" for="field-current_reading">The right reading <span class="field-required">required</span></label>
+        <input class="input input-large" type="text" id="field-current_reading" name="current_reading"
+               value="{{ form.current_reading or '' }}" inputmode="decimal" autocomplete="off"
+               {{- invalid_attributes("current_reading", "help-current_reading") }}>
+        <p class="field-help" id="help-current_reading">Type the number from the meter photo. It cannot be lower than the previous reading{% if not fix.is_first %} ({{ reading.previous_reading|plain_number }}){% endif %}.</p>
+        {{ field_error("current_reading") }}
+      </div>
+      {% if fix.is_first %}
+      {# CUS-5: a first reading's starting numbers came from the paper records and can be corrected too #}
+      <div class="field">
+        <label class="field-label" for="field-previous_reading">Previous reading</label>
+        <input class="input" type="text" id="field-previous_reading" name="previous_reading"
+               value="{{ form.previous_reading or '' }}" inputmode="decimal" autocomplete="off"
+               {{- invalid_attributes("previous_reading", "help-previous_reading") }}>
+        <p class="field-help" id="help-previous_reading">The last meter number from your paper records.</p>
+        {{ field_error("previous_reading") }}
+      </div>
+      <div class="field">
+        <label class="field-label" for="field-opening_balance">Opening balance (Ksh)</label>
+        <input class="input" type="text" id="field-opening_balance" name="opening_balance"
+               value="{{ form.opening_balance or '' }}" inputmode="decimal" autocomplete="off"
+               {{- invalid_attributes("opening_balance", "help-opening_balance") }}>
+        <p class="field-help" id="help-opening_balance">What {{ customer.first_name }} still owed before the app.</p>
+        {{ field_error("opening_balance") }}
+      </div>
+      {% endif %}
+      <div class="form-actions">
+        {{ submit_button("Save correction", "Saving...", "check") }}
+        {% if not in_place %}
+        <button class="button button-secondary" type="button" id="delete-open" data-open-dialog="delete-dialog">{{ icon("trash") }}Delete reading</button>
+        {% endif %}
+      </div>
+      {% if in_place %}
+      <p class="text-help">This reading cannot be deleted, because its bill was sent or has a payment. It is kept for the record.</p>
+      {% endif %}
+    </form>
+
+    {% if not in_place %}
+    <dialog class="modal" id="delete-dialog" aria-labelledby="delete-title">
+      <form class="modal-body" method="post" action="/readings/{{ reading.reading_id }}/delete"
+            hx-post="/readings/{{ reading.reading_id }}/delete" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" data-error-target="#delete-error">
+        {{ csrf_field(request) }}
+        <h2 class="modal-title" id="delete-title">Delete this reading?</h2>
+        <p>The reading for {{ full_name }} ({{ period|period_label }}) will be removed{% if fix.bill %}, with its bill{% endif %}. You can enter it again.</p>
+        <div class="dialog-error" id="delete-error"></div>
+        <div class="modal-actions">
+          <button class="button button-secondary" type="button" data-close-dialog>Keep it</button>
+          <button class="button button-danger" type="submit">Yes, delete</button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+    {% endif %}
+  {% endif %}
+</section>

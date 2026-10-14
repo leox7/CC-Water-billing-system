@@ -1,0 +1,99 @@
+{#
+  One person on the team (PRD ACC-1), as a table row. htmx swaps the whole row after a
+  change, and the dialogs inside it go with it, so an open dialog closes by itself.
+  Needs `member` (member.user and member.record_count). Pass `row_changed` as true when
+  the row comes back after a change, so the new status is announced.
+  The owner's row has no actions: the owner account is never changed from here.
+#}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import password_input %}
+{% set person = member.user %}
+{% set person_id = person.user_id %}
+{% set full_name = person.first_name ~ " " ~ person.last_name %}
+<tr id="team-row-{{ person_id }}">
+  <td>
+    <span class="cell-title">{{ full_name }}</span>
+    <span class="cell-sub">{{ person.phone|mask_phone if person.phone else person.email }}</span>
+  </td>
+  <td data-label="Role">{{ person.role|role_label }}</td>
+  <td class="cell-end">
+    {% with status = person.status, announce = row_changed %}{% include "partials/status_badge.html" %}{% endwith %}
+  </td>
+  <td>
+    {% if person.role == "member" %}
+    <div class="row-actions">
+      {% if person.status == "active" %}
+      <button class="button button-quiet" type="button" id="deactivate-open-{{ person_id }}"
+              data-open-dialog="deactivate-dialog-{{ person_id }}">Deactivate<span class="visually-hidden"> {{ full_name }}</span></button>
+      {% else %}
+      {# Reactivating can be undone, so it needs no confirmation (DESIGN_SYSTEM.md 7.9) #}
+      <form method="post" action="/account/members/{{ person_id }}/reactivate"
+            hx-post="/account/members/{{ person_id }}/reactivate" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#team-row-{{ person_id }}" hx-swap="outerHTML"
+            data-error-target="#account-messages">
+        {{ csrf_field(request) }}
+        <button class="button button-quiet" type="submit" id="reactivate-{{ person_id }}">Reactivate<span class="visually-hidden"> {{ full_name }}</span></button>
+      </form>
+      {% endif %}
+      <button class="button button-quiet" type="button" id="password-open-{{ person_id }}"
+              data-open-dialog="password-dialog-{{ person_id }}">Set new password<span class="visually-hidden"> for {{ full_name }}</span></button>
+      {# AUTH-4: someone who has recorded a reading or a payment can be deactivated, never deleted #}
+      {% if member.record_count == 0 %}
+      <button class="button button-quiet" type="button" id="delete-open-{{ person_id }}"
+              data-open-dialog="delete-dialog-{{ person_id }}">Delete<span class="visually-hidden"> {{ full_name }}</span></button>
+      {% endif %}
+    </div>
+
+    <dialog class="modal" id="deactivate-dialog-{{ person_id }}" aria-labelledby="deactivate-title-{{ person_id }}">
+      <form class="modal-body" method="post" action="/account/members/{{ person_id }}/deactivate"
+            hx-post="/account/members/{{ person_id }}/deactivate" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#team-row-{{ person_id }}" hx-swap="outerHTML"
+            data-error-target="#deactivate-error-{{ person_id }}">
+        {{ csrf_field(request) }}
+        <h2 class="modal-title" id="deactivate-title-{{ person_id }}">Deactivate {{ full_name }}?</h2>
+        <p>{{ person.first_name }} will not be able to sign in. What they recorded is kept, and you can reactivate the account later.</p>
+        <div class="dialog-error" id="deactivate-error-{{ person_id }}"></div>
+        <div class="modal-actions">
+          <button class="button button-secondary" type="button" data-close-dialog>Keep active</button>
+          <button class="button button-danger" type="submit">Yes, deactivate</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="password-dialog-{{ person_id }}" aria-labelledby="password-title-{{ person_id }}">
+      <form class="modal-body" method="post" action="/account/members/{{ person_id }}/password"
+            hx-post="/account/members/{{ person_id }}/password" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#team-row-{{ person_id }}" hx-swap="outerHTML"
+            data-error-target="#password-error-{{ person_id }}">
+        {{ csrf_field(request) }}
+        <h2 class="modal-title" id="password-title-{{ person_id }}">Set a new password for {{ full_name }}</h2>
+        <p>Give it to {{ person.first_name }} in person, never by SMS or chat. They can change it after signing in.</p>
+        <div class="field">
+          <label class="field-label" for="new-password-{{ person_id }}">New password</label>
+          {{ password_input("new_password", "new-password", "password-help-" ~ person_id, "new-password-" ~ person_id) }}
+          <p class="field-help" id="password-help-{{ person_id }}">At least 8 characters. Not their phone number.</p>
+        </div>
+        <div class="dialog-error" id="password-error-{{ person_id }}"></div>
+        <div class="modal-actions">
+          <button class="button button-secondary" type="button" data-close-dialog>Cancel</button>
+          <button class="button button-primary" type="submit">Set password</button>
+        </div>
+      </form>
+    </dialog>
+
+    {% if member.record_count == 0 %}
+    <dialog class="modal" id="delete-dialog-{{ person_id }}" aria-labelledby="delete-title-{{ person_id }}">
+      <form class="modal-body" method="post" action="/account/members/{{ person_id }}/delete"
+            hx-post="/account/members/{{ person_id }}/delete" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#team-row-{{ person_id }}" hx-swap="outerHTML"
+            data-error-target="#delete-error-{{ person_id }}">
+        {{ csrf_field(request) }}
+        <h2 class="modal-title" id="delete-title-{{ person_id }}">Delete {{ full_name }}?</h2>
+        <p>The account will be removed for good. {{ person.first_name }} has not recorded any readings or payments.</p>
+        <div class="dialog-error" id="delete-error-{{ person_id }}"></div>
+        <div class="modal-actions">
+          <button class="button button-secondary" type="button" data-close-dialog>Keep it</button>
+          <button class="button button-danger" type="submit">Yes, delete</button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+    {% endif %}
+  </td>
+</tr>

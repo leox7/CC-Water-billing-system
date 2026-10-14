@@ -1,0 +1,36 @@
+{#
+  What htmx gets back after a change on the team. The main part replaces what the form
+  pointed at (hx-target). The parts marked hx-swap-oob ("out of band") go to the places
+  named by their ids instead, so one answer can update several parts of the page.
+  Each out-of-band part is wrapped in <template>: inside a template the browser keeps
+  table rows as they are, wherever they sit in the answer (outside one, a <tbody> after a
+  <form> would be dropped). htmx looks inside templates for out-of-band parts.
+  - member: the changed row (deactivated, reactivated, new password)
+  - added_member: a new row, added to the end of the team table
+  - show_add_form: a fresh, empty add-member form, after a member was added
+  - message: what happened, shown at the top of the page
+  After a delete there is no main part, so the row is simply removed.
+#}
+{% from "macros/icons.html" import icon %}
+{% if member %}
+  {% with row_changed = true %}{% include "account/views/_team_row.html" %}{% endwith %}
+{% endif %}
+{% if show_add_form %}
+  {% with form = {} %}{% include "account/views/_add_member_form.html" %}{% endwith %}
+{% endif %}
+{% if added_member %}
+<template>
+  <tbody hx-swap-oob="beforeend:#team-rows">
+    {% with member = added_member, row_changed = true %}{% include "account/views/_team_row.html" %}{% endwith %}
+  </tbody>
+</template>
+{% endif %}
+<template>
+  <div id="account-messages" class="account-messages" role="status" hx-swap-oob="innerHTML">
+    <div class="message message-success" data-auto-dismiss>
+      {{ icon("circle-check", 20) }}
+      <div class="message-text">{{ message }}</div>
+      <button class="message-close" type="button" data-dismiss-message>Close<span class="visually-hidden"> message</span></button>
+    </div>
+  </div>
+</template>

@@ -1,0 +1,28 @@
+{#
+  Fix a reading (PRD 4.4). The user types the right number; the panel says beforehand what
+  will happen, and afterwards what did.
+  Needs `user`, `fix` (ReadingFix), `customer`, `period` and `form`. After a save, `result`;
+  after a refused save, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Fix a reading{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/readings/readings.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/readings">{{ icon("arrow-left", 24) }}<span>Readings</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">Fix a reading · {{ period|period_label }}</p>
+    <h1>{{ customer.first_name }} {{ customer.last_name }}</h1>
+    <p class="text-help"><span class="mono">{{ customer.meter_number }}</span> · {{ customer.location }}</p>
+  </div>
+  <a class="button button-secondary page-back" href="/readings">{{ icon("arrow-left") }}Back to readings</a>
+</div>
+
+{% include "readings/views/_fix_panel.html" %}
+{% endblock %}

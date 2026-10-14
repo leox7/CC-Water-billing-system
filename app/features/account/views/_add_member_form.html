@@ -1,0 +1,46 @@
+{#
+  The form to add a member (PRD AUTH-3). htmx sends it and swaps this form with the
+  answer: a fresh empty form after success, or this form with the message beside the field
+  and the typed values kept. The password is never put back.
+  Needs `form` (what was typed) and, after a failed try, `error`.
+#}
+{% from "macros/forms.html" import field_error, invalid_attributes, submit_button, password_input with context %}
+<form id="add-member-form" class="form" method="post" action="/account/members"
+      hx-post="/account/members" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="this" hx-swap="outerHTML">
+  {{ csrf_field(request) }}
+  {% if error and not error.field %}
+    {% set errors = [error] %}
+    {% include "partials/form_errors.html" %}
+  {% endif %}
+  <div class="field-row">
+    <div class="field">
+      <label class="field-label" for="field-first_name">First name <span class="field-required">required</span></label>
+      <input class="input" type="text" id="field-first_name" name="first_name" value="{{ form.first_name if form else '' }}"
+             autocomplete="off"{{ invalid_attributes("first_name") }}>
+      {{ field_error("first_name") }}
+    </div>
+    <div class="field">
+      <label class="field-label" for="field-last_name">Last name <span class="field-required">required</span></label>
+      <input class="input" type="text" id="field-last_name" name="last_name" value="{{ form.last_name if form else '' }}"
+             autocomplete="off"{{ invalid_attributes("last_name") }}>
+      {{ field_error("last_name") }}
+    </div>
+  </div>
+  <div class="field">
+    <label class="field-label" for="field-identifier">Phone number or email <span class="field-required">required</span></label>
+    <input class="input" type="text" id="field-identifier" name="identifier" value="{{ form.identifier if form else '' }}"
+           placeholder="0722 123 456 or name@example.com" autocomplete="off" autocapitalize="none" spellcheck="false"
+           {{- invalid_attributes("identifier", "member-identifier-help") }}>
+    <p class="field-help" id="member-identifier-help">They will use this to sign in.</p>
+    {{ field_error("identifier") }}
+  </div>
+  <div class="field">
+    <label class="field-label" for="field-password">First password <span class="field-required">required</span></label>
+    {{ password_input("password", "new-password", "member-password-help") }}
+    <p class="field-help" id="member-password-help">Give it to them in person. They can change it after signing in.</p>
+    {{ field_error("password") }}
+  </div>
+  <div class="form-actions">
+    {{ submit_button("Add member", "Adding...", "plus") }}
+  </div>
+</form>

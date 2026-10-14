@@ -1,0 +1,16 @@
+{#
+  The error as a small fragment, for a request that HTMX made. It has the same status
+  code as the full page would, and app.js tells htmx to show it (HTMX responses of 4xx
+  and 5xx are ignored by default). role="alert" makes screen readers announce it.
+  render_error() in core/errors.py fills in `message` and, for a 500, `reference`.
+#}
+{% from "macros/icons.html" import icon %}
+<div class="message message-error" role="alert">
+  {{ icon("alert-circle", 20) }}
+  <div class="message-text">
+    {{ message }}
+    {% if reference %}
+      <span class="text-help">Reference: <span class="mono">{{ reference }}</span></span>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,46 @@
+{#
+  The newest readings, newest first, as a table (stacked cards on a phone). Fix shows only on
+  a customer's latest reading: an older one cannot be corrected (COR-3).
+  Needs `recent` (RecentReading).
+#}
+{% from "macros/icons.html" import icon %}
+<section class="card table-card" aria-labelledby="recent-title">
+  <h2 class="card-title recent-title" id="recent-title">Recent readings</h2>
+  {% if recent %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Customer</th>
+        <th scope="col" class="cell-number">Previous</th>
+        <th scope="col" class="cell-number">Current</th>
+        <th scope="col" class="cell-number">Units</th>
+        <th scope="col">Date</th>
+        <th scope="col"><span class="visually-hidden">Fix</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent %}
+      {% set reading = row.reading %}
+      {% set full_name = row.customer.first_name ~ " " ~ row.customer.last_name %}
+      <tr>
+        <td>
+          <span class="cell-title">{{ full_name }}</span>
+          <span class="cell-sub">{{ reading.billing_period|period_label }}</span>
+        </td>
+        <td class="cell-number" data-label="Previous">{{ reading.previous_reading|plain_number }}</td>
+        <td class="cell-number" data-label="Current">{{ reading.current_reading|plain_number }}</td>
+        <td class="cell-number cell-end">{{ reading.units_consumed|plain_number }} m3</td>
+        <td data-label="Date">{{ reading.reading_date|date_label }}</td>
+        <td>
+          {% if row.is_latest %}
+          <a class="button button-quiet" href="/readings/{{ reading.reading_id }}/edit">{{ icon("pencil") }}Fix<span class="visually-hidden"> the reading for {{ full_name }}, {{ reading.billing_period|period_label }}</span></a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-help">No readings yet. They appear here as you enter them.</p>
+  {% endif %}
+</section>

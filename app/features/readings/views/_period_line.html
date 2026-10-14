@@ -1,0 +1,13 @@
+{#
+  The line under the date: "This reading will be billed to October 2026" (PRD RD-5), so a
+  reading entered late is not billed to the wrong month by accident. role="status" reads it
+  out as the date changes. Gets `period` (YYYY-MM), or `error` when the date cannot be used.
+#}
+{% from "macros/icons.html" import icon %}
+<p class="units-line" id="period-line" role="status">
+  {%- if period -%}
+    This reading will be billed to <strong>{{ period|period_label }}</strong>
+  {%- elif error and error.field == "reading_date" -%}
+    <span class="units-problem">{{ icon("alert-circle", 16) }}<span>{{ error.message }}</span></span>
+  {%- endif -%}
+</p>

@@ -1,0 +1,10 @@
+{#
+  One stat card for the owner's dashboard: a small label, a big figure and one line
+  of plain explanation (DESIGN_SYSTEM.md 7.4). Give it `label`, `figure` and `note`.
+  The figure is mono, so numbers line up and are easy to compare.
+#}
+<div class="stat-card">
+  <p class="text-label">{{ label }}</p>
+  <p class="stat-figure">{{ figure }}</p>
+  <p class="text-help">{{ note }}</p>
+</div>

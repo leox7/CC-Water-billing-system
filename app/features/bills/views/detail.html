@@ -1,0 +1,52 @@
+{#
+  One bill (DESIGN_SYSTEM.md section 8, Bills): the status, the breakdown in the order the
+  customer reads it in the SMS, and the Messages card. Every figure uses the same filters as
+  messaging/templates.py, so the page and the SMS always agree (TASK-050).
+  Needs `user`, `details` (BillDetails) and, after a Send again without htmx, `resend_status`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% set bill = details.bill %}
+{% set reading = details.reading %}
+{% set customer = details.customer %}
+{% set full_name = customer.first_name ~ " " ~ customer.last_name %}
+
+{% block title %}Bill for {{ full_name }}{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/bills/bills.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/bills">{{ icon("arrow-left", 24) }}<span>Bills</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">{{ reading.billing_period|period_label }} · Meter <span class="mono">{{ customer.meter_number }}</span></p>
+    <h1>Bill for {{ full_name }}</h1>
+    <div class="bill-status">{% with status = bill.status %}{% include "partials/status_badge.html" %}{% endwith %}</div>
+  </div>
+  <a class="button button-secondary page-back" href="/bills">{{ icon("arrow-left") }}Back to bills</a>
+</div>
+
+<div class="stack">
+  <section class="card" aria-labelledby="breakdown-title">
+    <h2 class="card-title" id="breakdown-title">What the bill is made of</h2>
+    <p class="card-description">In the same order as the SMS {{ customer.first_name }} gets.</p>
+    <dl class="breakdown">
+      <div><dt>Previous reading</dt><dd class="mono">{{ reading.previous_reading|plain_number }}</dd></div>
+      <div><dt>Current reading</dt><dd class="mono">{{ reading.current_reading|plain_number }}</dd></div>
+      <div><dt>Units used</dt><dd class="mono">{{ bill.units_consumed|plain_number }} m3</dd></div>
+      {# BILL-5, SMS-10: the rate saved on the bill, not the customer's rate today #}
+      <div><dt>Water charge ({{ bill.rate_per_unit|ksh }} per unit)</dt><dd class="mono">{{ bill.consumption_charge|ksh }}</dd></div>
+      <div><dt>Fixed charge</dt><dd class="mono">{{ bill.service_charge|ksh }}</dd></div>
+      {# SMS-8: shown only when something was carried over, as in the SMS #}
+      {% if bill.previous_balance > 0 %}
+      <div><dt>Previous balance</dt><dd class="mono">{{ bill.previous_balance|ksh }}</dd></div>
+      {% endif %}
+      <div class="breakdown-total"><dt>Total due</dt><dd class="mono">{{ bill.total_due|ksh }}</dd></div>
+    </dl>
+  </section>
+
+  {% include "bills/views/_message_log.html" %}
+</div>
+{% endblock %}

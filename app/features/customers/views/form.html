@@ -1,0 +1,75 @@
+{#
+  Add a customer or change one (PRD CUS-1, CUS-2). A normal form post: after a save the
+  user goes back to the list. After a refused save the page comes back with the message
+  beside the field and every typed value kept.
+  Needs `form` (the values to show), `customer_id` (None when adding) and, after a
+  refused save, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes, submit_button with context %}
+{% set is_new = customer_id is none %}
+{% set page_title = "Add customer" if is_new else "Edit customer" %}
+{% set form_action = "/customers/new" if is_new else "/customers/" ~ customer_id ~ "/edit" %}
+
+{# Jinja macro: one text box with its label, help line and error, so the seven boxes match #}
+{% macro text_field(name, label, help=none, input_type="text", inputmode=none, capitals=false, required=true) -%}
+<div class="field">
+  <label class="field-label" for="field-{{ name }}">{{ label }}{% if required %} <span class="field-required">required</span>{% endif %}</label>
+  <input class="input" type="{{ input_type }}" id="field-{{ name }}" name="{{ name }}" value="{{ form[name] or '' }}" autocomplete="off"
+         {%- if inputmode %} inputmode="{{ inputmode }}"{% endif %}
+         {%- if capitals %} autocapitalize="characters" spellcheck="false"{% endif %}
+         {{- invalid_attributes(name, "help-" ~ name if help else none) }}>
+  {% if help %}<p class="field-help" id="help-{{ name }}">{{ help }}</p>{% endif %}
+  {{ field_error(name) }}
+</div>
+{%- endmacro %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/customers/customers.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/customers">{{ icon("arrow-left", 24) }}<span>Customers</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">Customers</p>
+    <h1>{{ page_title }}</h1>
+  </div>
+  <a class="button button-secondary page-back" href="/customers">{{ icon("arrow-left") }}Back to customers</a>
+</div>
+
+<section class="card">
+  <form class="form" method="post" action="{{ form_action }}">
+    {{ csrf_field(request) }}
+    {% if error and not error.field %}
+      {% set errors = [error] %}
+      {% include "partials/form_errors.html" %}
+    {% endif %}
+    <div class="field-row">
+      {{ text_field("first_name", "First name") }}
+      {{ text_field("last_name", "Last name") }}
+    </div>
+    {{ text_field("phone", "Phone number", "A Kenyan mobile number, for example 0722 123 456. The bill SMS goes here.",
+                  input_type="tel", inputmode="tel") }}
+    {{ text_field("location", "Location", "Where the meter is, for example Kiawara Estate.") }}
+    {{ text_field("meter_number", "Meter number", "Letters, numbers, - and /, for example MTR-0032.", capitals=true) }}
+    <div class="field-row">
+      {{ text_field("rate_per_unit", "Rate per unit (Ksh)", "Changing it never changes a bill already made.",
+                    inputmode="decimal", required=false) }}
+      {{ text_field("service_charge", "Service charge per month (Ksh)", "Added to every bill as the fixed charge.",
+                    inputmode="decimal", required=false) }}
+    </div>
+    <div class="form-actions">
+      {% if is_new %}
+        {{ submit_button("Add customer", "Adding...", "plus") }}
+      {% else %}
+        {{ submit_button("Save changes", "Saving...", "check") }}
+      {% endif %}
+      <a class="button button-secondary" href="/customers">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

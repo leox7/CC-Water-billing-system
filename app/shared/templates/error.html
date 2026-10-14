@@ -1,0 +1,24 @@
+{#
+  The friendly error page (403, 404, 422, 500 and the like). It says what happened in
+  plain words and gives a way back. It never shows anything technical. For a 500 it
+  shows the Reference, which is the request id the developer searches for (AUD-4).
+  render_error() in core/errors.py fills in `heading`, `message` and `reference`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ heading }}{% endblock %}
+
+{% block content %}
+<div class="card error-card">
+  <div class="empty-state">
+    {{ icon("alert-circle", 32) }}
+    <h1>{{ heading }}</h1>
+    <p>{{ message }}</p>
+    {% if reference %}
+      <p class="text-help">Reference: <span class="mono">{{ reference }}</span>. Please quote this if you ask for help.</p>
+    {% endif %}
+    <a class="button button-primary" href="/">{{ icon("arrow-left") }}Back to home</a>
+  </div>
+</div>
+{% endblock %}

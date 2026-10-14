@@ -1,0 +1,101 @@
+{#
+  The layout every page extends. A page fills three blocks: title, head_css (its own
+  stylesheet) and content. A page that passes `user` gets the app shell (sidebar on
+  desktop, top bar and bottom tabs on mobile), and may fill topbar_start with a Back
+  button for the mobile top bar. A page without `user`, such as the
+  login page, gets only its own content.
+#}
+{% from "macros/icons.html" import icon %}
+{% set path = request.url.path %}
+
+{# Jinja macro: draws one link for the sidebar or the bottom bar, marking the current page #}
+{% macro nav_link(label, href, icon_name, link_class, icon_size) -%}
+  {% set is_current = (path == "/") if href == "/" else path.startswith(href) %}
+  <a class="{{ link_class }}" href="{{ href }}"{% if is_current %} aria-current="page"{% endif %}>
+    {{ icon(icon_name, icon_size) }}
+    <span>{{ label }}</span>
+  </a>
+{%- endmacro %}
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} | C&amp;C H2O</title>
+  <link rel="icon" href="/static/shared/img/icon-192.png">
+  <link rel="stylesheet" href="/static/shared/css/tokens.css">
+  <link rel="stylesheet" href="/static/shared/css/base.css">
+  <link rel="stylesheet" href="/static/shared/css/components.css">
+  {% block head_css %}{% endblock %}
+  <script src="/static/shared/js/htmx.min.js" defer></script>
+  <script src="/static/shared/js/app.js" defer></script>
+</head>
+{# htmx adds this header to every request it sends, so HTMX posts carry the CSRF token too (CSRF-2) #}
+<body hx-headers='{{ {"X-CSRF-Token": csrf_token(request)}|tojson }}'>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  {% if user %}
+    {# Owner and member see the same five main links (PRD section 5) #}
+    {% set main_links = [
+      ("Dashboard", "/", "home"),
+      ("Customers", "/customers", "users"),
+      ("Readings", "/readings", "gauge"),
+      ("Bills", "/bills", "receipt"),
+      ("Reports", "/reports", "chart-bar"),
+    ] %}
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="sidebar-brand" href="/">
+        <img src="/static/shared/img/logo-full.png" alt="C&amp;C H2O Water Supplies">
+      </a>
+      <nav class="nav-list" aria-label="Main">
+        {% for label, href, icon_name in main_links %}
+          {{ nav_link(label, href, icon_name, "nav-item", 20) }}
+        {% endfor %}
+        {{ nav_link("Account", "/account", "user-circle", "nav-item", 20) }}
+      </nav>
+      <div class="sidebar-footer">
+        <div>
+          <p class="text-label">Signed in</p>
+          <p class="sidebar-user">{{ user.first_name }} ({{ user.role|role_label }})</p>
+        </div>
+        <form method="post" action="/logout">
+          {{ csrf_field(request) }}
+          <button class="button button-secondary" type="submit">{{ icon("logout") }}Sign out</button>
+        </form>
+      </div>
+    </aside>
+
+    <header class="topbar">
+      {# A page that opens from a list fills this block with a Back button (DESIGN_SYSTEM.md 7.7) #}
+      {% block topbar_start %}
+      <a class="topbar-brand" href="/">
+        <img src="/static/shared/img/logo-mark.png" alt="">
+        <span>C&amp;C H2O</span>
+      </a>
+      {% endblock %}
+      <a class="topbar-link" href="/account">{{ icon("user-circle", 24, label="Account") }}</a>
+    </header>
+
+    <main id="main" class="content">
+      <div class="content-inner">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main">
+      {% for label, href, icon_name in main_links %}
+        {{ nav_link(label, href, icon_name, "tab", 24) }}
+      {% endfor %}
+    </nav>
+  </div>
+  {% else %}
+  {# No signed-in user (the login and register pages): just the page, no shell #}
+  <main id="main">
+    {{ self.content() }}
+  </main>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,78 @@
+{#
+  One customer, as a table row (a stacked card on a phone). htmx swaps the whole row after a
+  change, and the dialogs inside it go with it, so an open dialog closes by itself.
+  Needs `row` (row.customer and row.has_history). Pass `row_changed` as true when the row
+  comes back after a change, so the new status is announced.
+#}
+{% from "macros/icons.html" import icon %}
+{% set customer = row.customer %}
+{% set customer_id = customer.customer_id %}
+{% set full_name = customer.first_name ~ " " ~ customer.last_name %}
+<tr id="customer-row-{{ customer_id }}">
+  <td>
+    <span class="cell-title">{{ full_name }}</span>
+    <span class="cell-sub">{{ customer.phone|mask_phone }}</span>
+  </td>
+  <td data-label="Meter"><span class="mono">{{ customer.meter_number }}</span></td>
+  <td data-label="Location">{{ customer.location }}</td>
+  <td class="cell-end">
+    {% with status = customer.status, announce = row_changed %}{% include "partials/status_badge.html" %}{% endwith %}
+  </td>
+  <td>
+    <div class="row-actions">
+      <a class="icon-button" href="/customers/{{ customer_id }}/edit" aria-label="Edit {{ full_name }}">{{ icon("pencil") }}</a>
+      {% if customer.status == "active" %}
+      {# Deactivate and Reactivate share one id, so focus can come back to whichever replaces the other #}
+      <button class="button button-quiet" type="button" id="status-action-{{ customer_id }}"
+              data-open-dialog="deactivate-dialog-{{ customer_id }}">Deactivate<span class="visually-hidden"> {{ full_name }}</span></button>
+      {% else %}
+      {# Reactivating can be undone, so it needs no confirmation (DESIGN_SYSTEM.md 7.9) #}
+      <form method="post" action="/customers/{{ customer_id }}/reactivate"
+            hx-post="/customers/{{ customer_id }}/reactivate" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#customer-row-{{ customer_id }}" hx-swap="outerHTML"
+            data-error-target="#customer-messages">
+        {{ csrf_field(request) }}
+        <button class="button button-quiet" type="submit" id="status-action-{{ customer_id }}">Reactivate<span class="visually-hidden"> {{ full_name }}</span></button>
+      </form>
+      {% endif %}
+      {# CUS-3: a customer with readings or bills can be deactivated, never removed #}
+      {% if not row.has_history %}
+      <button class="icon-button" type="button" id="remove-open-{{ customer_id }}"
+              data-open-dialog="remove-dialog-{{ customer_id }}" aria-label="Remove {{ full_name }}">{{ icon("trash") }}</button>
+      {% endif %}
+    </div>
+
+    {% if customer.status == "active" %}
+    <dialog class="modal" id="deactivate-dialog-{{ customer_id }}" aria-labelledby="deactivate-title-{{ customer_id }}">
+      <form class="modal-body" method="post" action="/customers/{{ customer_id }}/deactivate"
+            hx-post="/customers/{{ customer_id }}/deactivate" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#customer-row-{{ customer_id }}" hx-swap="outerHTML"
+            data-error-target="#deactivate-error-{{ customer_id }}">
+        {{ csrf_field(request) }}
+        <h2 class="modal-title" id="deactivate-title-{{ customer_id }}">Deactivate {{ full_name }}?</h2>
+        <p>The customer will get no new bills or SMS. Their readings and bills are kept, and you can reactivate them later.</p>
+        <div class="dialog-error" id="deactivate-error-{{ customer_id }}"></div>
+        <div class="modal-actions">
+          <button class="button button-secondary" type="button" data-close-dialog>Keep active</button>
+          <button class="button button-danger" type="submit">Yes, deactivate</button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+
+    {% if not row.has_history %}
+    <dialog class="modal" id="remove-dialog-{{ customer_id }}" aria-labelledby="remove-title-{{ customer_id }}">
+      <form class="modal-body" method="post" action="/customers/{{ customer_id }}/remove"
+            hx-post="/customers/{{ customer_id }}/remove" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#customer-row-{{ customer_id }}" hx-swap="outerHTML"
+            data-error-target="#remove-error-{{ customer_id }}">
+        {{ csrf_field(request) }}
+        <h2 class="modal-title" id="remove-title-{{ customer_id }}">Remove {{ full_name }}?</h2>
+        <p>The customer will be removed for good. They have no readings or bills yet.</p>
+        <div class="dialog-error" id="remove-error-{{ customer_id }}"></div>
+        <div class="modal-actions">
+          <button class="button button-secondary" type="button" data-close-dialog>Keep it</button>
+          <button class="button button-danger" type="submit">Yes, remove</button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+  </td>
+</tr>

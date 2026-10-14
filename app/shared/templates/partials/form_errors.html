@@ -1,0 +1,26 @@
+{#
+  The error summary at the top of a form that failed (DESIGN_SYSTEM.md 11). Give it
+  `errors`: a list of things with a `message` and, when it belongs to one field, a
+  `field` name. Each message links to its field. role="alert" makes screen readers
+  announce it as soon as it appears.
+#}
+{% from "macros/icons.html" import icon %}
+{% if errors %}
+<div class="message message-error" role="alert" id="form-errors">
+  {{ icon("alert-circle", 20) }}
+  <div class="message-text">
+    {% if errors|length == 1 %}
+      {% set error = errors[0] %}
+      {% if error.field %}<a href="#field-{{ error.field }}">{{ error.message }}</a>{% else %}{{ error.message }}{% endif %}
+      {% if reference %}<span class="text-help">Reference: <span class="mono">{{ reference }}</span></span>{% endif %}
+    {% else %}
+      <p>Please fix these before saving:</p>
+      <ul class="message-list">
+        {% for error in errors %}
+          <li>{% if error.field %}<a href="#field-{{ error.field }}">{{ error.message }}</a>{% else %}{{ error.message }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

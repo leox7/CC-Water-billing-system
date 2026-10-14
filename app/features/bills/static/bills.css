@@ -1,0 +1,139 @@
+/* The Bills screen and the bill page. Everything else comes from components.css. */
+
+/* Month and status side by side on desktop, the button at the end */
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.filter-form .field {
+  flex: 0 1 240px;
+}
+
+.table td.bill-open {
+  text-align: right;
+}
+
+.bill-status {
+  margin-top: var(--space-2);
+}
+
+/* The breakdown, in the order of the SMS: label left, figure right, total largest */
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  max-width: 640px;
+}
+
+.breakdown > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.breakdown dd {
+  font-weight: 600;
+  /* a figure stays on the right, even when a long label pushes it to its own line */
+  margin-left: auto;
+}
+
+.breakdown .breakdown-total {
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--bg-surface-muted);
+  border-bottom: 0;
+  border-radius: var(--radius-control);
+}
+
+.breakdown-total dd {
+  font-weight: 700;
+}
+
+/* The Messages card: one line per attempt */
+.message-log {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  list-style: none;
+}
+
+.message-log-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.message-log-item:last-child {
+  border-bottom: 0;
+}
+
+.message-log-type {
+  font-weight: 600;
+}
+
+/* Sent, Failed or Sending: a word and an icon, never colour alone */
+.sms-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+}
+
+.sms-status-sent {
+  color: var(--success-text);
+  background: var(--success-bg);
+}
+
+.sms-status-failed {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.sms-status-pending {
+  color: var(--text-secondary);
+  background: var(--bg-surface-muted);
+}
+
+.messages-card > * + * {
+  margin-top: var(--space-4);
+}
+
+.messages-card > .card-title + .card-description {
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 767px) {
+  .filter-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-form .field {
+    flex-basis: auto;
+  }
+
+  /* On a phone the whole card opens the bill, so the eye button is not needed */
+  .table td.bill-open {
+    display: none;
+  }
+
+  .resend-form .button {
+    width: 100%;
+  }
+}

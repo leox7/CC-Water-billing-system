@@ -1,0 +1,105 @@
+{#
+  The Customers screen (PRD section 4.2, DESIGN_SYSTEM.md section 8).
+  Everyone signed in sees "Add customer" and, on each row, edit, deactivate or reactivate,
+  and remove: owner and member do this work alike (PRD section 3).
+  Needs `user`, `rows` (customers with has_history), `search`, `active_count`, `list_limit`
+  and, after a save, `notice`. After a refused search, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import invalid_attributes with context %}
+
+{% block title %}Customers{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/customers/customers.css">{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label" id="active-count">{{ active_count }} active</p>
+    <h1>Customers</h1>
+  </div>
+  <a class="button button-primary" href="/customers/new">{{ icon("plus") }}Add customer</a>
+</div>
+
+{# Messages after a change land here and are read out. htmx puts them here "out of band". #}
+<div id="customer-messages" class="messages" role="status">
+  {% if notice %}
+  <div class="message message-success" data-auto-dismiss>
+    {{ icon("circle-check", 20) }}
+    <div class="message-text">{{ notice }}</div>
+    <button class="message-close" type="button" data-dismiss-message>Close<span class="visually-hidden"> message</span></button>
+  </div>
+  {% endif %}
+</div>
+
+{#
+  The search box. Without htmx it is a normal search that loads the page again. With htmx,
+  typing searches after a short pause: hx-get asks for the same page, hx-select takes only
+  the results out of it and puts them in place of the old results (hx-target, hx-swap),
+  and hx-push-url keeps the search in the address bar, so Back and a refresh still work.
+  hx-select-oob also takes the "found" line, which is read out to screen reader users.
+#}
+<form class="search-form" method="get" action="/customers" role="search"
+      hx-get="/customers" hx-trigger="input changed delay:300ms from:#field-search, submit"
+      hx-target="#customer-results" hx-select="#customer-results" hx-swap="outerHTML"
+      hx-select-oob="#search-status:innerHTML" hx-push-url="true" hx-indicator="#search-working">
+  <div class="field">
+    <label class="field-label" for="field-search">Search by name, meter number or location</label>
+    <div class="search-row">
+      <input class="input" type="search" id="field-search" name="search" value="{{ search }}" maxlength="100"
+             placeholder="For example Mary" autocomplete="off" spellcheck="false"
+             {{- invalid_attributes("search") }}>
+      <button class="button button-secondary" type="submit">{{ icon("search") }}Search</button>
+    </div>
+  </div>
+  <p class="search-status text-help" id="search-status" role="status">
+    {%- if search and not error %}{{ rows|length }} {{ "customer" if rows|length == 1 else "customers" }} found.{% endif -%}
+  </p>
+  {# hidden until htmx is searching (htmx-indicator) #}
+  <div class="htmx-indicator" id="search-working"><p class="loading-placeholder">Searching...</p></div>
+</form>
+
+<div id="customer-results">
+  {# A refused search says why here, inside the results, so htmx shows it too #}
+  {% if error %}
+    {% set errors = [error] %}
+    {% include "partials/form_errors.html" %}
+  {% endif %}
+  {% if rows %}
+  <section class="card table-card" aria-label="Customer list">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Customer</th>
+          <th scope="col">Meter number</th>
+          <th scope="col">Location</th>
+          <th scope="col">Status</th>
+          <th scope="col"><span class="visually-hidden">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody id="customer-rows">
+        {% for row in rows %}
+          {% include "customers/views/_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% if rows|length >= list_limit %}
+  <p class="list-note text-help">Showing the first {{ list_limit }} customers. Search to find the others.</p>
+  {% endif %}
+  {% elif search and not error %}
+  <section class="card empty-state">
+    {{ icon("search", 32) }}
+    <p>No customers match "{{ search }}". Check the spelling, or search by meter number or location.</p>
+    <a class="button button-secondary" href="/customers">Show all customers</a>
+  </section>
+  {% elif not error %}
+  <section class="card empty-state">
+    {{ icon("users", 32) }}
+    <p>No customers yet. Add your first customer to get started.</p>
+    {# secondary: the page already has its one primary button, at the top #}
+    <a class="button button-secondary" href="/customers/new">{{ icon("plus") }}Add customer</a>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

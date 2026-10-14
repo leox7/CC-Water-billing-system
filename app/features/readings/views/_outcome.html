@@ -1,0 +1,30 @@
+{#
+  What a save did, in plain words (DESIGN_SYSTEM.md section 1, rule 6), with the bill's figures
+  and a way to the bill. A failed or blocked SMS is a warning with a way forward (section 9).
+  Needs `result` (ReadingResult), `full_name`, `outcome_start` ("Reading saved." or
+  "Reading corrected.") and, for a correction in place, `sms_kind` = "correction".
+#}
+{% from "macros/icons.html" import icon %}
+{% set bill = result.bill %}
+{% if result.sms_status == "sent" %}
+<div class="message message-success" role="status">
+  {{ icon("circle-check", 20) }}
+  <div class="message-text">{{ outcome_start }} {% if sms_kind == "correction" %}A correction SMS was sent to {{ full_name }}.{% else %}The bill was sent to {{ full_name }}.{% endif %}</div>
+</div>
+{% elif result.sms_status == "failed" %}
+<div class="message message-warning" role="status">
+  {{ icon("alert-circle", 20) }}
+  <div class="message-text">{{ outcome_start }} The SMS to {{ full_name }} did not send. Send it again from the bill.</div>
+</div>
+{% else %}
+<div class="message message-warning" role="status">
+  {{ icon("alert-circle", 20) }}
+  <div class="message-text">{{ outcome_start }} No SMS was sent: this bill has reached today's SMS limit. Send it again from the bill tomorrow.</div>
+</div>
+{% endif %}
+
+<dl class="outcome-facts">
+  <div><dt>Units used</dt><dd class="mono">{{ result.reading.units_consumed|plain_number }} m3</dd></div>
+  <div><dt>Total due</dt><dd class="mono">{{ bill.total_due|ksh }}</dd></div>
+</dl>
+<p><a href="/bills/{{ bill.bill_id }}">Open the bill for {{ result.reading.billing_period|period_label }}</a></p>

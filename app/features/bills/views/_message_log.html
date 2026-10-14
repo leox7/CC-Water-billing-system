@@ -1,0 +1,70 @@
+{#
+  The Messages card: every SMS attempt for the bill, oldest first, with its status in a word and
+  an icon. "Send again" shows only when the latest attempt failed (SMS-4), and not for an
+  inactive customer (CUS-4). htmx replaces this whole card after Send again.
+  Needs `details` (BillDetails) and, after Send again, `resend_status` (sent or failed).
+#}
+{% from "macros/icons.html" import icon %}
+{% set customer = details.customer %}
+{% set full_name = customer.first_name ~ " " ~ customer.last_name %}
+{% set latest = details.messages[-1] if details.messages else none %}
+{% set message_words = {"sent": "Sent", "failed": "Failed", "pending": "Sending"} %}
+{% set message_icons = {"sent": "circle-check", "failed": "alert-circle", "pending": "info-circle"} %}
+<section class="card messages-card" id="messages-card" aria-labelledby="messages-title">
+  <h2 class="card-title" id="messages-title">Messages</h2>
+  <p class="card-description">Every SMS for this bill. "Sent" means Africa's Talking took it to deliver.</p>
+
+  {# tabindex and autofocus: after Send again, focus lands on what happened, which is read out #}
+  {% if resend_status == "sent" %}
+  <div class="message message-success" role="status" tabindex="-1" autofocus>
+    {{ icon("circle-check", 20) }}
+    <div class="message-text">The SMS was sent again to {{ full_name }}.</div>
+  </div>
+  {% elif resend_status == "failed" %}
+  <div class="message message-warning" role="status" tabindex="-1" autofocus>
+    {{ icon("alert-circle", 20) }}
+    <div class="message-text">The SMS to {{ full_name }} did not send again. Please try again later.</div>
+  </div>
+  {% endif %}
+
+  {% if details.messages %}
+  <ul class="message-log">
+    {% for message in details.messages %}
+    <li class="message-log-item">
+      <div>
+        <p class="message-log-type">{{ "Correction SMS" if message.message_type == "correction" else "Bill SMS" }}</p>
+        <p class="text-help">{{ message.created_at|date_time_label }}</p>
+      </div>
+      <span class="sms-status sms-status-{{ message.status }}">{{ icon(message_icons[message.status], 16) }}{{ message_words[message.status] }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-help">No SMS has been sent for this bill.</p>
+  {% endif %}
+
+  {% if latest and latest.status == "failed" %}
+    {% if customer.status == "active" %}
+    {% if not resend_status %}
+    <div class="message message-warning">
+      {{ icon("alert-circle", 20) }}
+      <div class="message-text">The SMS did not send. Send it again.</div>
+    </div>
+    {% endif %}
+    <form class="resend-form" method="post" action="/bills/{{ details.bill.bill_id }}/resend"
+          hx-post="/bills/{{ details.bill.bill_id }}/resend" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#messages-card" hx-swap="outerHTML"
+          data-error-target="#resend-error">
+      {{ csrf_field(request) }}
+      <button class="button button-quiet" type="submit">
+        <span class="button-label">
+          <span>{{ icon("send") }}Send again</span>
+          <span class="button-working">Sending...</span>
+        </span>
+      </button>
+    </form>
+    {% else %}
+    <p class="text-help">{{ full_name }} is inactive, so no SMS is sent. Reactivate the customer first to send it again.</p>
+    {% endif %}
+  {% endif %}
+  <div class="dialog-error" id="resend-error"></div>
+</section>

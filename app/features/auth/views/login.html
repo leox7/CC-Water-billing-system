@@ -1,0 +1,56 @@
+{#
+  The sign in page (PRD AUTH-1, DESIGN_SYSTEM.md section 8). Nobody is signed in here, so
+  base.html shows only this page, without the sidebar.
+  From the controller: `form` (what was typed), `registration_open`, `notice`, and after a
+  failed try `error` from render_error().
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import submit_button, password_input with context %}
+
+{% block title %}Sign in{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/auth/auth.css">{% endblock %}
+
+{% block content %}
+<div class="auth-layout">
+  {% include "auth/views/_brand.html" %}
+
+  <div class="auth-panel">
+    <div class="auth-form-area">
+      <div class="auth-heading">
+        <h1>Welcome back</h1>
+        <p class="text-help">Sign in to your account</p>
+      </div>
+
+      {% if notice %}
+      <div class="message message-success" role="status">
+        {{ icon("circle-check", 20) }}<div class="message-text">{{ notice }}</div>
+      </div>
+      {% endif %}
+      {% if error %}
+        {% set errors = [error] %}
+        {% include "partials/form_errors.html" %}
+      {% endif %}
+
+      <form class="form" method="post" action="/login">
+        {{ csrf_field(request) }}
+        <div class="field">
+          <label class="field-label" for="field-identifier">Phone number or email</label>
+          <input class="input" type="text" id="field-identifier" name="identifier"
+                 value="{{ form.identifier if form else '' }}" placeholder="0722 123 456 or you@example.com"
+                 autocomplete="username" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="field">
+          <label class="field-label" for="field-password">Password</label>
+          {{ password_input("password", "current-password") }}
+        </div>
+        {{ submit_button("Sign in", "Signing in...", extra_class="button-wide") }}
+      </form>
+
+      {% if registration_open %}
+      <p class="auth-switch text-help">No account yet? <a href="/register">Create the owner account</a></p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

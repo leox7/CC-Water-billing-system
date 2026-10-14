@@ -1,0 +1,18 @@
+{#
+  A status pill with an icon and a word, never colour alone (DESIGN_SYSTEM.md 7.5).
+  Give it `status`: paid, partial, unpaid (a bill) or active, inactive (a person).
+  Pass `announce` as true when HTMX swaps it in, so screen readers announce the change.
+  Jinja `include` pulls this file in with the caller's variables.
+#}
+{% from "macros/icons.html" import icon %}
+{% set badge_icons = {
+  "paid": "circle-check",
+  "partial": "circle-half",
+  "unpaid": "alert-circle",
+  "active": "circle-check",
+  "inactive": "info-circle",
+} %}
+<span class="badge badge-{{ status }}"{% if announce %} role="status"{% endif %}>
+  {{ icon(badge_icons[status], 16) }}
+  {{ status|capitalize }}
+</span>

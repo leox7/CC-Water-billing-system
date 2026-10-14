@@ -1,0 +1,67 @@
+{#
+  The Account screen (PRD section 4.9, DESIGN_SYSTEM.md section 8).
+  The owner sees the team, the add-member form, change password and sign out (ACC-1).
+  A member sees only change password and sign out (ACC-2).
+  Needs `user` and, for the owner, `team` (a list of team members).
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Account{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/account/account.css">{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">{{ user.first_name }} ({{ user.role|role_label }})</p>
+    <h1>Account</h1>
+  </div>
+</div>
+
+{# Messages after a change land here (sent by htmx as an out-of-band part) and are read out #}
+<div id="account-messages" class="account-messages" role="status"></div>
+
+<div class="stack">
+  {% if user.role == "owner" %}
+  <section class="card table-card" aria-labelledby="team-title">
+    <h2 class="card-title" id="team-title">Team</h2>
+    <p class="card-description">Everyone who can sign in. Members do the same billing work as you. Only you manage accounts.</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Role</th>
+          <th scope="col">Status</th>
+          <th scope="col"><span class="visually-hidden">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody id="team-rows">
+        {% for member in team %}
+          {% include "account/views/_team_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card" aria-labelledby="add-member-title">
+    <h2 class="card-title" id="add-member-title">Add a member</h2>
+    <p class="card-description">A family member who helps with the billing. They can do everything except manage accounts.</p>
+    {% include "account/views/_add_member_form.html" %}
+  </section>
+  {% endif %}
+
+  <section class="card" aria-labelledby="password-title">
+    <h2 class="card-title" id="password-title">Change your password</h2>
+    {% include "account/views/_change_password_form.html" %}
+  </section>
+
+  <section class="card" aria-labelledby="sign-out-title">
+    <h2 class="card-title" id="sign-out-title">Sign out</h2>
+    <p class="card-description">You are signed in as {{ user.first_name }} ({{ user.role|role_label }}).</p>
+    <form method="post" action="/logout">
+      {{ csrf_field(request) }}
+      <button class="button button-secondary" type="submit">{{ icon("logout") }}Sign out</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

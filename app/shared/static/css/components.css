@@ -1,0 +1,897 @@
+/* Shared components (DESIGN_SYSTEM.md sections 7 and 9). Each one lives here once and is
+   reused by every page. Colours, spacing and sizes come from tokens.css only.
+   Mobile rules sit in the @media (max-width: 767px) block at the end. */
+
+/* ---- page header (7.11): small label, title, and the one main action ---- */
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.page-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Cards and other blocks that sit one under another */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ---- buttons (7.1): all 48px tall ---- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-6);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+/* The one main action on a screen */
+.button-primary {
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+
+.button-primary:hover {
+  color: var(--text-on-accent);
+  background: var(--accent-hover);
+}
+
+.button-primary:active {
+  background: var(--accent-active);
+}
+
+/* Cancel, Back, Sign out, Edit */
+.button-secondary {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border-color: var(--border-control);
+}
+
+.button-secondary:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-muted);
+}
+
+.button-secondary:active {
+  background: var(--border);
+}
+
+/* Only inside a confirmation: Yes, delete */
+.button-danger {
+  color: var(--text-on-accent);
+  background: var(--danger);
+}
+
+.button-danger:hover {
+  color: var(--text-on-accent);
+  background: color-mix(in srgb, var(--danger) 88%, var(--text-primary));
+}
+
+.button-danger:active {
+  background: color-mix(in srgb, var(--danger) 76%, var(--text-primary));
+}
+
+/* Small extra actions: Resend SMS */
+.button-quiet {
+  color: var(--accent);
+  background: transparent;
+}
+
+.button-quiet:hover {
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+}
+
+.button-quiet:active {
+  color: var(--accent-active);
+}
+
+/* View, edit and delete inside a row. Always give it an accessible name. */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  color: var(--text-primary);
+  text-decoration: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-small);
+  transition: background-color 150ms ease;
+}
+
+.icon-button:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-muted);
+}
+
+.icon-button:active {
+  background: var(--border);
+}
+
+/* Disabled: say why next to it when it is not obvious */
+/* Not while htmx is sending the form: hx-disabled-elt disables the button then, and it
+   should look busy (spinner, below), not unavailable */
+.button:disabled:not(.htmx-request .button),
+.button[aria-disabled="true"],
+.icon-button:disabled {
+  color: var(--text-disabled);
+  background: var(--bg-surface-muted);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+/* Loading: the working word and a spinner, the same width, and not clickable again.
+   Both words sit in the same grid cell, so the button never changes size. */
+.button-label {
+  display: grid;
+}
+
+.button-label > * {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.button-working {
+  visibility: hidden;
+}
+
+.htmx-request .button,
+.button.htmx-request,
+.button.is-loading {
+  pointer-events: none;
+}
+
+.htmx-request .button-label > :not(.button-working),
+.button.htmx-request .button-label > :not(.button-working),
+.button.is-loading .button-label > :not(.button-working) {
+  visibility: hidden;
+}
+
+.htmx-request .button-working,
+.button.htmx-request .button-working,
+.button.is-loading .button-working {
+  visibility: visible;
+}
+
+/* A small spinner. With reduced motion it stays still (section 11). */
+.button-working::before,
+.loading-placeholder::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* htmx's own indicator styles are turned off, so the indicator is styled here */
+.htmx-indicator {
+  display: none;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  display: inline-flex;
+}
+
+/* Fragments being swapped show this, never a blank gap */
+.loading-placeholder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  color: var(--text-secondary);
+}
+
+/* A button that fills the width of its form, on every screen (the sign in button) */
+.button-wide {
+  width: 100%;
+}
+
+/* Buttons that finish a form: side by side on desktop, stacked on mobile */
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ---- form fields (7.2) ---- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 560px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field-label {
+  font-weight: 600;
+}
+
+/* The word "required" in the label, not just a star */
+.field-required {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  font-size: 16px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+}
+
+.textarea {
+  min-height: 96px;
+  padding: var(--space-3) var(--space-4);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-placeholder);
+}
+
+/* The reading and amount fields are the biggest in the app */
+.input-large {
+  min-height: 56px;
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Read-only: filled in for you, with a note under it */
+.input[readonly] {
+  background: var(--bg-surface-muted);
+}
+
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+  color: var(--text-disabled);
+  background: var(--bg-surface-muted);
+  cursor: not-allowed;
+}
+
+.field-help {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* A field with an error: danger border, and a message that says how to fix it */
+.input[aria-invalid="true"],
+.select[aria-invalid="true"],
+.textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--danger-text);
+}
+
+.field-error .icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* A password box with a Show button inside its right end (app.js does the swapping) */
+.password-field {
+  position: relative;
+}
+
+.password-field .input {
+  padding-right: 80px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 64px;
+  height: var(--tap-min);
+  padding: 0 var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+}
+
+.password-toggle:hover {
+  background: var(--accent-soft);
+}
+
+/* Two short fields side by side, on desktop only (first and last name) */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+/* ---- cards (7.3): never nested inside another card ---- */
+
+.card {
+  padding: var(--space-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.card-description {
+  margin-top: var(--space-1);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* Space between a card's title and what follows it. A description sits close under
+   its title, and the content after the description gets the full space. */
+.card-title + *,
+.card-description + * {
+  margin-top: var(--space-4);
+}
+
+.card-title + .card-description {
+  margin-top: var(--space-1);
+}
+
+/* ---- stat card (7.4): label, big figure, one line of explanation ---- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.stat-figure {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+/* ---- status badge (7.5): a pill with an icon and a word ---- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+}
+
+.badge-paid,
+.badge-active {
+  color: var(--success-text);
+  background: var(--success-bg);
+}
+
+.badge-partial {
+  color: var(--warning-text);
+  background: var(--warning-bg);
+}
+
+.badge-unpaid {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.badge-inactive {
+  color: var(--text-secondary);
+  background: var(--bg-surface-muted);
+}
+
+/* ---- tables (7.6): a table on desktop, stacked cards on mobile ---- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: var(--space-3);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  height: 56px;
+  padding: var(--space-2) var(--space-3);
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover td {
+  background: var(--bg-surface-muted);
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: 0;
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: 0;
+}
+
+/* Money columns are mono and right aligned */
+.table .cell-number {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* A number column's heading lines up with its figures, in the normal label font */
+.table th.cell-number {
+  font-family: var(--font-ui);
+}
+
+/* A row's first cell: the bold name, and a quieter line under it */
+.cell-title {
+  display: block;
+  font-weight: 700;
+}
+
+.cell-sub {
+  display: block;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* View, edit and delete buttons at the end of a row */
+.row-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Makes a whole row or card open its link. Buttons in the row sit above it. */
+.table tbody tr {
+  position: relative;
+}
+
+.stretched-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* Selected (a chosen customer, a chosen row) */
+.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* ---- modal (7.9): for things that cannot easily be undone ---- */
+
+.modal {
+  width: calc(100% - var(--space-8));
+  max-width: 440px;
+  padding: 0;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+/* A dark transparent backdrop lifts the modal. No shadow. */
+.modal::backdrop {
+  background: color-mix(in srgb, var(--text-primary) 50%, transparent);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* The safe choice first and quieter, the action second */
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* ---- messages (7.10): success, info, warning, error ---- */
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+/* A place for messages takes no room while there is nothing to say */
+.messages:empty {
+  display: none;
+}
+
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  font-size: 16px;
+  border-radius: var(--radius-card);
+}
+
+.message .icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.message-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.message-success {
+  color: var(--success-text);
+  background: var(--success-bg);
+}
+
+.message-info {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.message-warning {
+  color: var(--warning-text);
+  background: var(--warning-bg);
+}
+
+.message-error {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+/* The close button at the end of a message */
+.message-close {
+  flex: none;
+  min-height: var(--tap-min);
+  margin: calc(var(--space-3) * -1) calc(var(--space-2) * -1) calc(var(--space-3) * -1) auto;
+  padding: 0 var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+}
+
+.message-close:hover {
+  text-decoration: underline;
+}
+
+/* A link inside a message keeps the message colour, and is underlined so it still reads as a link */
+.message a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* With several errors, a list at the top that links to each field */
+.message-list {
+  margin-top: var(--space-2);
+  padding-left: var(--space-5);
+  list-style: disc;
+}
+
+/* ---- search box: a list's search, with its button beside it (Customers, Readings) ---- */
+
+.search-form {
+  max-width: 560px;
+  margin-bottom: var(--space-6);
+}
+
+.search-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.search-row .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* "3 customers found." Takes no room while there is nothing to say. */
+.search-status {
+  margin-top: var(--space-2);
+}
+
+.search-status:empty {
+  display: none;
+}
+
+/* "Showing the first 200..." under a long list */
+.list-note {
+  margin-top: var(--space-4);
+}
+
+/* A spot for a message inside a dialog, empty until something goes wrong */
+.dialog-error:empty {
+  display: none;
+}
+
+/* ---- empty state: an icon, one friendly sentence, one action ---- */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* The error page: one centred card, with or without the app shell around it */
+.error-card {
+  width: calc(100% - var(--space-8));
+  max-width: 560px;
+  margin: var(--space-12) auto;
+}
+
+/* ---- mobile ---- */
+
+@media (max-width: 767px) {
+  .search-form {
+    margin-bottom: var(--space-4);
+  }
+
+  /* A page that opens from a list has its Back button in the top bar on a phone (7.7) */
+  .page-back {
+    display: none;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header .button {
+    width: 100%;
+  }
+
+  .stack {
+    gap: var(--space-4);
+  }
+
+  .card,
+  .stat-card {
+    padding: var(--space-4);
+  }
+
+  /* A button that finishes a form is full width, and buttons stack */
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .form-actions .button {
+    width: 100%;
+  }
+
+  /* Short fields no longer sit side by side */
+  .field-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  .stat-grid {
+    gap: var(--space-4);
+  }
+
+  .stat-figure {
+    font-size: 26px;
+  }
+
+  /* Modal slides up from the bottom as a sheet */
+  .modal {
+    width: 100%;
+    max-width: none;
+    margin: auto 0 0;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    animation: sheet-up 150ms ease;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions .button {
+    width: 100%;
+  }
+}
+
+@container page (max-width: 719px) {
+  /* Tables never scroll sideways (7.6). When the content column is narrower than 720px,
+     which is every phone and also a tablet beside the sidebar, each row becomes a card:
+     the first cell and any cell marked .cell-end share the top line, and every other
+     cell is a line below. */
+  .table-card {
+    padding: 0;
+    background: transparent;
+    border: 0;
+  }
+
+  .table,
+  .table tbody {
+    display: block;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-1) var(--space-3);
+    min-height: 56px;
+    padding: var(--space-4);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+  }
+
+  .table td,
+  .table td:first-child,
+  .table td:last-child {
+    display: block;
+    grid-column: 1 / -1;
+    height: auto;
+    padding: 0;
+    border: 0;
+  }
+
+  .table tbody tr:hover td {
+    background: transparent;
+  }
+
+  .table td:first-child {
+    grid-column: 1;
+  }
+
+  .table td.cell-end {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .table .cell-number {
+    text-align: left;
+  }
+
+  /* A cell's heading, taken from its data-label, written in front of it */
+  .table td[data-label]::before {
+    content: attr(data-label) ": ";
+    font-family: var(--font-ui);
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* Four stat cards across on desktop, two on narrow tablets and from 480px up,
+   one per row below that (7.4) */
+@media (max-width: 1023px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 479px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}

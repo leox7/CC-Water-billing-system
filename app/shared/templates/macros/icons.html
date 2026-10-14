@@ -1,0 +1,7 @@
+{# Draws one icon inline (DESIGN_SYSTEM.md 7.8). The drawing comes from static/icons/<name>.svg.
+   An icon beside visible text is decorative, so it is hidden from screen readers.
+   An icon on its own needs a label: {{ icon("pencil", label="Edit reading") }} #}
+{% macro icon(name, size=20, label=none) -%}
+<svg class="icon" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+  {%- if label %} role="img" aria-label="{{ label }}"{% else %} aria-hidden="true" focusable="false"{% endif %}>{{ icon_markup(name) }}</svg>
+{%- endmacro %}

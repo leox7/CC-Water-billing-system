@@ -1,0 +1,99 @@
+{#
+  The Bills screen (PRD section 4.5, DESIGN_SYSTEM.md section 8): every bill, filtered by month
+  and status. A table on desktop, stacked cards on a phone. Each row opens its bill.
+  Needs `user`, `rows` (BillRow), `periods`, `month` ("" for all), `status` ("" for all),
+  `statuses` and `list_limit`. After a refused filter, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes with context %}
+
+{% block title %}Bills{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/bills/bills.css">{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">{{ month|period_label if month and not error else "All months" }}</p>
+    <h1>Bills</h1>
+  </div>
+</div>
+
+{# A plain search form: choosing and pressing Show bills loads the page with the filters in the address #}
+<form class="filter-form" method="get" action="/bills" role="search" aria-label="Filter the bills">
+  <div class="field">
+    <label class="field-label" for="field-month">Month</label>
+    <select class="select" id="field-month" name="month"{{ invalid_attributes("month") }}>
+      <option value="">All months</option>
+      {% for period in periods %}
+      <option value="{{ period }}"{% if period == month %} selected{% endif %}>{{ period|period_label }}</option>
+      {% endfor %}
+    </select>
+    {{ field_error("month") }}
+  </div>
+  <div class="field">
+    <label class="field-label" for="field-status">Status</label>
+    <select class="select" id="field-status" name="status"{{ invalid_attributes("status") }}>
+      <option value="">All statuses</option>
+      {% for choice in statuses %}
+      <option value="{{ choice }}"{% if choice == status %} selected{% endif %}>{{ choice|capitalize }}</option>
+      {% endfor %}
+    </select>
+    {{ field_error("status") }}
+  </div>
+  <button class="button button-secondary" type="submit">{{ icon("search") }}Show bills</button>
+</form>
+
+{% if rows %}
+<section class="card table-card" aria-label="Bill list">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Customer</th>
+        <th scope="col">Month</th>
+        <th scope="col" class="cell-number">Units</th>
+        <th scope="col" class="cell-number">Total due</th>
+        <th scope="col">Status</th>
+        <th scope="col"><span class="visually-hidden">Open</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      {% set full_name = row.customer.first_name ~ " " ~ row.customer.last_name %}
+      <tr>
+        <td>
+          <a class="cell-title stretched-link" href="/bills/{{ row.bill.bill_id }}">{{ full_name }}</a>
+          <span class="cell-sub mono">{{ row.customer.meter_number }}</span>
+        </td>
+        <td data-label="Month">{{ row.reading.billing_period|period_label }}</td>
+        <td class="cell-number" data-label="Units">{{ row.bill.units_consumed|plain_number }} m3</td>
+        <td class="cell-number" data-label="Total due">{{ row.bill.total_due|ksh }}</td>
+        <td class="cell-end">{% with status = row.bill.status %}{% include "partials/status_badge.html" %}{% endwith %}</td>
+        <td class="bill-open">
+          <a class="icon-button" href="/bills/{{ row.bill.bill_id }}" aria-label="Open the bill for {{ full_name }}, {{ row.reading.billing_period|period_label }}">{{ icon("eye") }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% if rows|length >= list_limit %}
+<p class="list-note text-help">Showing the first {{ list_limit }} bills. Pick a month or a status to see the others.</p>
+{% endif %}
+{% elif error %}
+  {% set errors = [error] %}
+  {% include "partials/form_errors.html" %}
+{% elif periods %}
+<section class="card empty-state">
+  {{ icon("receipt", 32) }}
+  <p>No bills match these filters.</p>
+  <a class="button button-secondary" href="/bills?month=">Show all bills</a>
+</section>
+{% else %}
+<section class="card empty-state">
+  {{ icon("receipt", 32) }}
+  <p>No bills yet. A bill is made as soon as a reading is saved.</p>
+  <a class="button button-secondary" href="/readings">{{ icon("gauge") }}Enter readings</a>
+</section>
+{% endif %}
+{% endblock %}

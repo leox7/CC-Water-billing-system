@@ -1,0 +1,51 @@
+/* Design tokens: the only file allowed to hold a hex value.
+   Copied as is from docs/DESIGN_SYSTEM.md section 2. */
+:root {
+  /* surfaces */
+  --bg-page: #FAF9F6;
+  --bg-surface: #FFFFFF;
+  --bg-surface-muted: #F3F2EE;
+  --border: #E4E2DC;
+  --border-control: #8C897F;
+
+  /* text */
+  --text-primary: #1A1A18;
+  --text-secondary: #6B6960;
+  --text-placeholder: #77746B;
+  --text-disabled: #9B9890;
+  --text-on-accent: #FFFFFF;
+
+  /* accent */
+  --accent: #084571;
+  --accent-hover: #0A5486;
+  --accent-active: #063A5F;
+  --accent-soft: #E8EEF3;
+
+  /* status and feedback */
+  --success-text: #2F6F4E;  --success-bg: #E7F0EA;
+  --warning-text: #8A6215;  --warning-bg: #F5EFE2;
+  --danger-text:  #A23B33;  --danger-bg:  #F5E7E5;
+  --danger: #A23B33;
+
+  /* type */
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* spacing (4px base) */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;  --space-6: 24px;  --space-8: 32px;  --space-10: 40px;
+  --space-12: 48px; --space-16: 64px;
+
+  /* shape */
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --radius-small: 8px;
+  --radius-pill: 999px;
+
+  /* sizes */
+  --control-height: 48px;
+  --tap-min: 44px;
+  --sidebar-width: 248px;
+  --bottom-bar-height: 64px;
+  --content-max: 1120px;
+}

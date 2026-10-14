@@ -1,0 +1,4 @@
+# Development tools: tests and the dependency audit (AGENTS.md section 3).
+-r requirements.txt
+pytest==9.1.1
+pip-audit==2.10.1
