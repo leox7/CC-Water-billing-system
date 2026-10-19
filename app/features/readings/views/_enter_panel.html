@@ -94,7 +94,7 @@
                autofocus hx-get="/readings/preview" hx-trigger="input changed delay:300ms" hx-target="#units-line"
                hx-swap="outerHTML" hx-include="[name=customer_id],[name=previous_reading]" hx-sync="this:replace"
                {{- invalid_attributes("current_reading", "units-line") }}>
-        {# a refused save shows its message under the field, so the live line starts empty #}
+        {# a refused save shows its message under the field, so the live line starts with its hint #}
         {% with error = none %}{% include "readings/views/_units_line.html" %}{% endwith %}
         {{ field_error("current_reading") }}
       </div>

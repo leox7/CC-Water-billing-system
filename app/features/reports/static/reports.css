@@ -1,0 +1,100 @@
+/* The Reports menu and the four reports. Tables, stat cards and empty states come from
+   components.css. */
+
+/* The menu: four link cards, two across on desktop, one under another on a phone */
+.report-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.report-link {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  height: 100%;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background-color 150ms ease;
+}
+
+.report-link:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-muted);
+}
+
+.report-link-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-control);
+}
+
+.report-link-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.report-link-text .card-title,
+.report-link-text .card-description {
+  display: block;
+}
+
+/* The same filter row as the Bills screen: fields side by side, the button at the end */
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.filter-form .field {
+  flex: 0 1 280px;
+}
+
+/* "5 customers owe Ksh 9,450 in total." above a report */
+.report-total {
+  margin-bottom: var(--space-4);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* The monthly summary has three figures, not four */
+.summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1023px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-menu {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .filter-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-form .field {
+    flex-basis: auto;
+  }
+
+  .report-total {
+    font-size: 16px;
+  }
+}

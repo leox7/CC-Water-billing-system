@@ -703,6 +703,12 @@
   display: none;
 }
 
+/* The hint a live line shows before anything is typed (units used, still owed) */
+.line-hint {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
 /* "Showing the first 200..." under a long list */
 .list-note {
   margin-top: var(--space-4);

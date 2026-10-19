@@ -19,6 +19,8 @@ from tests.conftest import TEST_CSRF_TOKEN
 
 PUBLIC = {
     ("GET", "/health"),
+    ("GET", "/sw.js"),
+    ("GET", "/manifest.json"),
     ("GET", "/login"),
     ("POST", "/login"),
     ("GET", "/register"),
@@ -47,6 +49,14 @@ SIGNED_IN = {
     ("GET", "/bills"),
     ("GET", "/bills/{bill_id}"),
     ("POST", "/bills/{bill_id}/resend"),
+    ("GET", "/bills/{bill_id}/payments/preview"),
+    ("POST", "/bills/{bill_id}/payments"),
+    ("GET", "/"),
+    ("GET", "/reports"),
+    ("GET", "/reports/arrears"),
+    ("GET", "/reports/payments"),
+    ("GET", "/reports/customers"),
+    ("GET", "/reports/summary"),
 }
 # AUTHZ-1: account management, and nothing else
 OWNER_ONLY = {
@@ -80,6 +90,8 @@ def call(client, method, path, targets):
     url = url.replace("{bill_id}", str(targets.bill.bill_id))
     if path == "/readings/preview":
         url += f"?customer_id={targets.customer.customer_id}&current_reading=12"
+    if path == "/bills/{bill_id}/payments/preview":
+        url += "?amount=100"
     if method == "GET":
         return client.get(url, follow_redirects=False)
     # a valid CSRF token, so a 403 can only come from the role check
@@ -204,19 +216,14 @@ def test_a_deactivated_owner_is_locked_out_too(web, make_user, sign_in_as):
 
 # ---- every event built so far has a test that finds its row (AUDIT_LOG.md section 8) ----
 
-# Recorded only by payments (TASK-053), which are built in Phase 5
-NOT_BUILT_YET = {"bill.status_changed", "payment.recorded", "payment.rejected"}
-
-
 def test_every_event_built_so_far_is_tested():
     tests_folder = pathlib.Path(__file__).parent
     all_test_code = " ".join(path.read_text(encoding="utf-8") for path in tests_folder.rglob("test_*.py")
                              if path.name != "test_permissions.py")
     events = [event for event in EVENT_LEVELS
-              if event.startswith(("auth.", "user.", "customer.", "reading.", "bill.", "sms.", "system."))
-              and event not in NOT_BUILT_YET]
+              if event.startswith(("auth.", "user.", "customer.", "reading.", "bill.", "payment.", "sms.", "system."))]
 
     untested = [event for event in events if f'"{event}"' not in all_test_code]
 
-    assert len(events) == 33
+    assert len(events) == 36
     assert untested == []

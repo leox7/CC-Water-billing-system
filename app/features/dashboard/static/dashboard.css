@@ -1,0 +1,11 @@
+/* The dashboard. The stat cards, the table and the empty state come from components.css. */
+
+/* The link to the arrears report under a long "Needs attention" list */
+.attention-more {
+  margin-top: var(--space-4);
+}
+
+/* A long button text wraps on a narrow phone instead of running off the card */
+.attention-more .button {
+  white-space: normal;
+}

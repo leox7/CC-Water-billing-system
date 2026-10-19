@@ -5,7 +5,7 @@ import html
 import re
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.features.readings import service as readings
 from app.models import AuditLog, MessageLog
@@ -23,8 +23,10 @@ def audit_rows(db_session, event_type):
 
 
 def figures(page):
-    """The breakdown on the bill page, as {label: figure}."""
-    pairs = re.findall(r"<div[^>]*><dt>(.*?)</dt><dd class=\"mono\">(.*?)</dd></div>", page)
+    """The breakdown on the bill page, as {label: figure}. Only that card: the Payments card
+    below it has rows of the same shape."""
+    breakdown = page.split('id="breakdown-title"')[1].split("</section>")[0]
+    pairs = re.findall(r"<div[^>]*><dt>(.*?)</dt><dd class=\"mono\">(.*?)</dd></div>", breakdown)
     return dict(pairs)
 
 
@@ -159,6 +161,29 @@ def test_the_messages_card_lists_every_attempt_with_its_status(as_member, db_ses
     assert "Bill SMS" in page and "Failed" in page
     assert "The SMS did not send. Send it again." in page
     assert f'hx-post="/bills/{first.bill.bill_id}/resend"' in page
+
+
+def test_a_failed_sms_shows_its_plain_reason_next_to_send_again(as_member, db_session, owner, mary, sms):
+    # SMS-3: the user can see what to fix before pressing Send again
+    sms.failure = "Africa's Talking balance is too low. Top up and press Send again."
+    first = enter(db_session, owner, mary, "12", "2025-08-30")
+
+    page = text_of(as_member.get(f"/bills/{first.bill.bill_id}"))
+
+    reason = page.index('<p class="text-help message-log-reason">'
+                        "Africa's Talking balance is too low. Top up and press Send again.</p>")
+    assert page.index("Bill SMS") < reason < page.index(f'hx-post="/bills/{first.bill.bill_id}/resend"')
+
+
+def test_a_failed_sms_from_before_reasons_were_kept_shows_no_empty_line(as_member, db_session, owner, mary, sms):
+    sms.failure = "Could not reach Africa's Talking."
+    first = enter(db_session, owner, mary, "12", "2025-08-30")
+    db_session.execute(update(MessageLog).where(MessageLog.bill_id == first.bill.bill_id)
+                       .values(failure_reason=None))
+
+    page = text_of(as_member.get(f"/bills/{first.bill.bill_id}"))
+
+    assert "Failed" in page and "message-log-reason" not in page
 
 
 def test_a_sent_sms_offers_no_send_again(as_member, bills_in_two_months):

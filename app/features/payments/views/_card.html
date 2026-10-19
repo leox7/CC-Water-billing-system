@@ -1,0 +1,121 @@
+{#
+  The Payments card on the bill page (DESIGN_SYSTEM.md section 8, Bills and Record payment):
+  what has been paid and what is still owed, the payments so far, and the form to record
+  another one. The form is there only on the customer's latest bill (PAY-3): an older bill
+  shows "Carried forward" instead. htmx swaps this whole card after a save (hx-target,
+  outerHTML), so a refused save comes back here with the message beside the field and what
+  was typed kept.
+  Needs `details` (BillDetails) and `today`. After a save `payment_saved`, and `oob` when htmx
+  sent the request; after a refused save `error` and `form`.
+#}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes, submit_button with context %}
+{% set bill = details.bill %}
+{% set customer = details.customer %}
+{% set form = form or {"amount": "", "payment_date": today.isoformat(), "mpesa_reference": ""} %}
+<section class="card payment-card" id="payment-card" aria-labelledby="payments-title">
+  <h2 class="card-title" id="payments-title">Payments</h2>
+  <p class="card-description">What {{ customer.first_name }} has paid on this bill.</p>
+
+  {# tabindex and autofocus: after a save, focus lands on what happened, which is read out #}
+  {% if payment_saved %}
+  <div class="message message-success" role="status" tabindex="-1" autofocus>
+    {{ icon("circle-check", 20) }}
+    <div class="message-text">Payment saved. {{ customer.first_name }}'s bill is now {{ bill.status|capitalize }}.</div>
+  </div>
+  {% endif %}
+
+  {# a refusal that belongs to no field (a bill that takes no more payments, a 500) shows here #}
+  {% if error and not error.field %}
+    {% set errors = [error] %}
+    {% include "partials/form_errors.html" %}
+  {% endif %}
+
+  <dl class="breakdown">
+    <div><dt>Paid so far</dt><dd class="mono">{{ bill.amount_paid|ksh }}</dd></div>
+    <div class="breakdown-total"><dt>Still owed</dt><dd class="mono">{{ details.still_owed|ksh }}</dd></div>
+  </dl>
+
+  {% if details.payments %}
+  <ul class="payment-log">
+    {% for payment in details.payments %}
+    <li class="payment-log-item">
+      <div>
+        <p class="payment-log-date">{{ payment.payment_date|date_label }}</p>
+        <p class="text-help">{% if payment.mpesa_reference %}M-Pesa code <span class="mono">{{ payment.mpesa_reference }}</span>{% else %}No M-Pesa code{% endif %}</p>
+      </div>
+      <span class="mono payment-log-amount">{{ payment.amount|ksh }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-help">No payment has been recorded for this bill yet.</p>
+  {% endif %}
+
+  {% if details.latest_bill.bill_id != bill.bill_id %}
+  {# PAY-3: a newer bill already holds what this one had left, so a payment here would count twice #}
+  <div class="message message-info">
+    {{ icon("info-circle", 20) }}
+    <div class="message-text">
+      <strong>Carried forward.</strong> What this bill had left was added to {{ customer.first_name }}'s newer bill, so payments are recorded there.
+      <a href="/bills/{{ details.latest_bill.bill_id }}">Open the latest bill</a>.
+    </div>
+  </div>
+
+  {% elif details.still_owed <= 0 %}
+  <p class="text-help">This bill is paid. Nothing more is owed on it.</p>
+
+  {% else %}
+  <form class="form payment-form" method="post" action="/bills/{{ bill.bill_id }}/payments"
+        hx-post="/bills/{{ bill.bill_id }}/payments" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#payment-card" hx-swap="outerHTML"
+        {# the live amount line inside sends its own small requests, and must not inherit the button guard #}
+        hx-disinherit="hx-disabled-elt">
+    {{ csrf_field(request) }}
+
+    <div class="field">
+      <label class="field-label" for="field-amount">Amount received (Ksh) <span class="field-required">required</span></label>
+      {#
+        As the amount is typed, htmx asks the server what would still be owed, after a short
+        pause (hx-trigger), and puts the answer in the line under the field (hx-target). The
+        rule stays on the server. hx-sync cancels an older request when a newer one starts.
+      #}
+      <input class="input input-large" type="text" id="field-amount" name="amount"
+             value="{{ form.amount or '' }}" inputmode="decimal" autocomplete="off" placeholder="For example 1,000"
+             hx-get="/bills/{{ bill.bill_id }}/payments/preview" hx-trigger="input changed delay:300ms"
+             hx-target="#owed-line" hx-swap="outerHTML" hx-sync="this:replace"
+             {{- invalid_attributes("amount", "owed-line") }}>
+      {# a refused save shows its message under the field, so the live line starts with its hint #}
+      {% with error = none %}{% include "payments/views/_owed_line.html" %}{% endwith %}
+      {{ field_error("amount") }}
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="field-payment_date">Date</label>
+      <input class="input payment-date" type="date" id="field-payment_date" name="payment_date"
+             value="{{ form.payment_date or '' }}" max="{{ today.isoformat() }}"
+             {{- invalid_attributes("payment_date", "help-payment_date") }}>
+      <p class="field-help" id="help-payment_date">The day the money arrived.</p>
+      {{ field_error("payment_date") }}
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="field-mpesa_reference">M-Pesa code (optional)</label>
+      <input class="input mono" type="text" id="field-mpesa_reference" name="mpesa_reference"
+             value="{{ form.mpesa_reference or '' }}" autocomplete="off" autocapitalize="characters" maxlength="20"
+             {{- invalid_attributes("mpesa_reference", "help-mpesa_reference") }}>
+      <p class="field-help" id="help-mpesa_reference">From the M-Pesa message, for example QGH7X2K9LM. It stops the same payment being saved twice.</p>
+      {{ field_error("mpesa_reference") }}
+    </div>
+
+    {{ submit_button("Record payment", "Saving...", "check", "button-wide") }}
+  </form>
+  {% endif %}
+</section>
+
+{% if oob %}
+{# htmx out-of-band swap: this piece of the response replaces the element with the same id (the
+   status badge at the top of the bill page), outside the card, so the badge updates with it #}
+<div class="bill-status" id="bill-status" hx-swap-oob="true">
+  {% with status = bill.status, announce = true %}{% include "partials/status_badge.html" %}{% endwith %}
+</div>
+{% endif %}

@@ -31,7 +31,7 @@
             hx-post="/customers/{{ customer_id }}/reactivate" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#customer-row-{{ customer_id }}" hx-swap="outerHTML"
             data-error-target="#customer-messages">
         {{ csrf_field(request) }}
-        <button class="button button-quiet" type="submit" id="status-action-{{ customer_id }}">Reactivate<span class="visually-hidden"> {{ full_name }}</span></button>
+        <button class="button button-quiet" type="submit" id="status-action-{{ customer_id }}"><span class="button-label"><span>Reactivate<span class="visually-hidden"> {{ full_name }}</span></span><span class="button-working">Reactivating...</span></span></button>
       </form>
       {% endif %}
       {# CUS-3: a customer with readings or bills can be deactivated, never removed #}
@@ -52,7 +52,7 @@
         <div class="dialog-error" id="deactivate-error-{{ customer_id }}"></div>
         <div class="modal-actions">
           <button class="button button-secondary" type="button" data-close-dialog>Keep active</button>
-          <button class="button button-danger" type="submit">Yes, deactivate</button>
+          <button class="button button-danger" type="submit"><span class="button-label"><span>Yes, deactivate</span><span class="button-working">Deactivating...</span></span></button>
         </div>
       </form>
     </dialog>
@@ -69,7 +69,7 @@
         <div class="dialog-error" id="remove-error-{{ customer_id }}"></div>
         <div class="modal-actions">
           <button class="button button-secondary" type="button" data-close-dialog>Keep it</button>
-          <button class="button button-danger" type="submit">Yes, remove</button>
+          <button class="button button-danger" type="submit"><span class="button-label"><span>Yes, remove</span><span class="button-working">Removing...</span></span></button>
         </div>
       </form>
     </dialog>

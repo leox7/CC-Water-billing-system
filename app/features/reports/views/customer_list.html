@@ -1,0 +1,96 @@
+{#
+  REP-3, the customer list: every customer with their meter number, location and the status of
+  their latest bill, narrowed by that status. A row with a bill opens it.
+  Needs `user`, `report` (CustomerReport, or none after a refused filter), `status` ("" for
+  all), `statuses` and `list_limit`. After a refused filter, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes with context %}
+
+{% block title %}All customers{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/reports/reports.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/reports">{{ icon("arrow-left", 24) }}<span>Reports</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">Customer list</p>
+    <h1>All customers</h1>
+  </div>
+  {% include "reports/views/_back.html" %}
+</div>
+
+<form class="filter-form" method="get" action="/reports/customers" role="search" aria-label="Filter the customers">
+  <div class="field">
+    <label class="field-label" for="field-status">Latest bill</label>
+    <select class="select" id="field-status" name="status"{{ invalid_attributes("status") }}>
+      <option value="">All customers</option>
+      {% for choice in statuses %}
+      <option value="{{ choice }}"{% if choice == status %} selected{% endif %}>{{ choice|capitalize }}</option>
+      {% endfor %}
+    </select>
+    {{ field_error("status") }}
+  </div>
+  <button class="button button-secondary" type="submit">{{ icon("search") }}Show customers</button>
+</form>
+
+{% if error %}
+  {% set errors = [error] %}
+  {% include "partials/form_errors.html" %}
+{% elif report.rows %}
+<p class="report-total">{{ report.customer_count }} {{ "customer" if report.customer_count == 1 else "customers" }}.</p>
+<section class="card table-card" aria-label="Customer list">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Customer</th>
+        <th scope="col">Location</th>
+        <th scope="col">Latest bill</th>
+        <th scope="col" class="cell-number">Owes</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in report.rows %}
+      {% set full_name = row.customer.first_name ~ " " ~ row.customer.last_name %}
+      <tr>
+        <td>
+          {% if row.latest %}
+          <a class="cell-title stretched-link" href="/bills/{{ row.latest.bill.bill_id }}">{{ full_name }}</a>
+          {% else %}
+          <span class="cell-title">{{ full_name }}</span>
+          {% endif %}
+          <span class="cell-sub"><span class="mono">{{ row.customer.meter_number }}</span>{% if row.customer.status == "inactive" %} · Inactive{% endif %}</span>
+        </td>
+        <td data-label="Location">{{ row.customer.location }}</td>
+        <td data-label="Latest bill">{{ row.latest.period|period_label if row.latest else "No bill yet" }}</td>
+        <td class="cell-number" data-label="Owes">{{ row.amount_owed|ksh }}</td>
+        <td class="cell-end">
+          {% if row.latest %}{% with status = row.latest.bill.status %}{% include "partials/status_badge.html" %}{% endwith %}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% if report.customer_count > list_limit %}
+<p class="list-note text-help">Showing the first {{ list_limit }} customers. Pick a status to see the others.</p>
+{% endif %}
+{% elif status %}
+<section class="card empty-state">
+  {{ icon("users", 32) }}
+  <p>No customer's latest bill is {{ status }}.</p>
+  <a class="button button-secondary" href="/reports/customers">Show all customers</a>
+</section>
+{% else %}
+<section class="card empty-state">
+  {{ icon("users", 32) }}
+  <p>No customers yet. Add your first customer to get started.</p>
+  <a class="button button-secondary" href="/customers/new">{{ icon("plus") }}Add customer</a>
+</section>
+{% endif %}
+{% endblock %}

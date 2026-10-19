@@ -68,7 +68,7 @@ def test_signing_in_with_the_right_details_goes_to_the_home_page(web, make_user)
     response = open_and_post(web, "/login", {"identifier": "0722 123 456", "password": TEST_PASSWORD})
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/account"
+    assert response.headers["location"] == "/"
 
 
 def test_wrong_details_show_the_generic_message_and_keep_the_phone_or_email(web, make_user):
@@ -123,7 +123,7 @@ def test_a_signed_in_person_who_opens_login_goes_to_the_home_page(web, make_user
     response = web.get("/login", follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/account"
+    assert response.headers["location"] == "/"
 
 
 @pytest.mark.parametrize("notice,text", [("registered", "Your account is ready"), ("signed-out", "You have signed out")])
@@ -223,7 +223,7 @@ def test_the_whole_first_visit_register_then_sign_in(web):
 
     response = open_and_post(web, "/login", {"identifier": "Daniel@Example.com", "password": TEST_PASSWORD})
 
-    assert response.headers["location"] == "/account"
+    assert response.headers["location"] == "/"
 
 
 def test_register_redirects_to_login_once_an_owner_exists(web, make_user):

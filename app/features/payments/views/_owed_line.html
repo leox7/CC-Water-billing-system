@@ -1,0 +1,22 @@
+{#
+  The live line under the amount: "Ksh 1,600 will still be owed.", or why the amount cannot be
+  used (DESIGN_SYSTEM.md section 8, Record payment). A short hint until something is typed.
+  role="status" reads the line out as it changes.
+  Gets `owed` (OwedAfter) from the preview, or `error` when the amount is refused.
+#}
+{% from "macros/icons.html" import icon %}
+<p class="owed-line" id="owed-line" role="status">
+  {%- if owed is defined and owed is not none -%}
+    {%- if owed.left > 0 -%}
+      <span class="mono">{{ owed.left|ksh }}</span> will still be owed.
+    {%- else -%}
+      Nothing will still be owed.
+    {%- endif -%}
+    {%- if owed.extra > 0 %} That is <span class="mono">{{ owed.extra|ksh }}</span> more than the bill. The extra is saved but not carried forward.{% endif -%}
+  {%- elif error and (error.field == "amount" or not error.field) -%}
+    <span class="owed-problem">{{ icon("alert-circle", 16) }}<span>{{ error.message }}</span></span>
+  {%- else -%}
+    {# before anything is typed: a hint, so the line is never an empty gap (TASK-068) #}
+    <span class="line-hint">Type the amount to see what will still be owed.</span>
+  {%- endif -%}
+</p>

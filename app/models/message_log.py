@@ -29,6 +29,8 @@ class MessageLog(Base):
         Enum("pending", "sent", "failed", name="message_status"), server_default="pending"
     )
     provider_message_id: Mapped[str | None] = mapped_column(String(100))
+    # SMS-3: a plain sentence the app chose from the provider's status code, empty unless failed
+    failure_reason: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[datetime] = mapped_column(
         server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")

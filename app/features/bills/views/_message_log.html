@@ -1,7 +1,7 @@
 {#
   The Messages card: every SMS attempt for the bill, oldest first, with its status in a word and
-  an icon. "Send again" shows only when the latest attempt failed (SMS-4), and not for an
-  inactive customer (CUS-4). htmx replaces this whole card after Send again.
+  an icon, and a failed one with its plain reason (SMS-3). "Send again" shows only when the
+  latest attempt failed (SMS-4), and not for an inactive customer (CUS-4). htmx replaces this whole card after Send again.
   Needs `details` (BillDetails) and, after Send again, `resend_status` (sent or failed).
 #}
 {% from "macros/icons.html" import icon %}
@@ -36,6 +36,10 @@
         <p class="text-help">{{ message.created_at|date_time_label }}</p>
       </div>
       <span class="sms-status sms-status-{{ message.status }}">{{ icon(message_icons[message.status], 16) }}{{ message_words[message.status] }}</span>
+      {# SMS-3: what to fix before Send again. Messages that failed before the reason was kept have none. #}
+      {% if message.status == "failed" and message.failure_reason %}
+      <p class="text-help message-log-reason">{{ message.failure_reason }}</p>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

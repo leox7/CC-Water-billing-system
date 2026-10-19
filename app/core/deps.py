@@ -20,7 +20,8 @@ from app.models import User
 
 # AUTH-S1: the only pages that need nobody signed in. Static files are served before
 # any route runs, so they are not listed here.
-PUBLIC_PATHS = frozenset({"/login", "/register", "/health"})
+# /sw.js and /manifest.json are the PWA files: the browser fetches them without the session
+PUBLIC_PATHS = frozenset({"/login", "/register", "/health", "/sw.js", "/manifest.json"})
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> User | None:

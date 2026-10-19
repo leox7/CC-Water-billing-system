@@ -1,6 +1,6 @@
 {#
   The live line under the reading field: "That is 24 units used.", or why the number cannot be
-  used (DESIGN_SYSTEM.md section 8, step 3). Empty until something is typed. role="status"
+  used (DESIGN_SYSTEM.md section 8, step 3). A short hint until something is typed. role="status"
   reads the line out as it changes.
   Gets `units` from the preview, or `error` when the number is refused.
 #}
@@ -10,5 +10,8 @@
     That is <span class="mono">{{ units|plain_number }}</span> {{ "unit" if units == 1 else "units" }} used.
   {%- elif error and error.field == "current_reading" -%}
     <span class="units-problem">{{ icon("alert-circle", 16) }}<span>{{ error.message }}</span></span>
+  {%- else -%}
+    {# before anything is typed: a hint, so the line is never an empty gap (TASK-068) #}
+    <span class="line-hint">Type the reading to see the units used.</span>
   {%- endif -%}
 </p>

@@ -5,6 +5,7 @@ example session secret, which production refuses to run with (SEC-3).
 """
 
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
@@ -21,9 +22,11 @@ DEVELOPMENT_SESSION_SECRET = "development-only-secret-not-for-production-use"
 APP_ENVIRONMENTS = ("development", "test", "production")
 SMS_BACKENDS = ("console", "africastalking")
 MINIMUM_SECRET_BYTES = 32
-# Africa's Talking's test account: it takes requests and shows the messages in its simulator,
-# and sends nothing to a real phone. It is the only way to use africastalking outside production.
+# Africa's Talking's test account. The bulk SMS endpoint the app uses has no sandbox, so this
+# username is refused rather than sending to an address that does not exist.
 SANDBOX_USERNAME = "sandbox"
+# Africa's Talking's rule for an alphanumeric sender ID: 1 to 11 letters, digits, - or _
+SENDER_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,11}")
 
 
 class ConfigError(Exception):
@@ -41,6 +44,7 @@ class Settings:
     sms_backend: str
     at_username: str
     at_api_key: str = field(repr=False)
+    at_sender_id: str
     hsts_seconds: int
     default_rate_per_unit: Decimal
     default_service_charge: Decimal
@@ -48,10 +52,6 @@ class Settings:
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
-
-    @property
-    def uses_sandbox(self) -> bool:
-        return self.sms_backend == "africastalking" and self.at_username == SANDBOX_USERNAME
 
 
 def _read_int(environ: Mapping[str, str], name: str, default: int, minimum: int) -> int:
@@ -117,23 +117,30 @@ def _read_debug(environ: Mapping[str, str], app_env: str) -> bool:
     return debug
 
 
-def _check_sms_settings(sms_backend: str, app_env: str, username: str, api_key: str) -> None:
+def _read_sender_id(environ: Mapping[str, str]) -> str:
+    sender_id = environ.get("AT_SENDER_ID", "").strip()
+    # empty is allowed here: only the africastalking backend needs one (_check_sms_settings)
+    if sender_id != "" and not SENDER_ID_PATTERN.fullmatch(sender_id):
+        raise ConfigError("AT_SENDER_ID must be 1 to 11 characters: letters, digits, - or _, with no spaces.")
+    return sender_id
+
+
+def _check_sms_settings(sms_backend: str, app_env: str, username: str, api_key: str, sender_id: str) -> None:
     if sms_backend == "console":
         return
-    is_sandbox = username == SANDBOX_USERNAME
-    # SMS-6, SEC-7: a real SMS is never sent from a development or test run. Only the sandbox,
-    # which sends nothing to a real phone, may be used there.
-    if app_env != "production" and not is_sandbox:
-        raise ConfigError(
-            "SMS_BACKEND=africastalking is allowed in production only. "
-            f"For development use the sandbox: AT_USERNAME={SANDBOX_USERNAME} with its API key."
-        )
+    if username == SANDBOX_USERNAME:
+        raise ConfigError("Africa's Talking's bulk SMS endpoint has no sandbox, so AT_USERNAME=sandbox cannot be "
+                          "used. Use SMS_BACKEND=console outside production.")
+    # SMS-6, SEC-7: a real SMS is never sent from a development or test run
+    if app_env != "production":
+        raise ConfigError("SMS_BACKEND=africastalking is allowed in production only. "
+                          "Use SMS_BACKEND=console for development.")
     if username == "" or api_key == "":
         raise ConfigError("AT_USERNAME and AT_API_KEY are needed for africastalking.")
-    # the sandbox shows messages in a simulator only, so a live app on it would send nothing
-    if app_env == "production" and is_sandbox:
-        raise ConfigError("The Africa's Talking sandbox is for development only. "
-                          "Production needs the live account's AT_USERNAME and AT_API_KEY.")
+    # Africa's Talking requires senderId on every bulk request
+    if sender_id == "":
+        raise ConfigError("AT_SENDER_ID is needed for africastalking. Set it to the sender ID "
+                          "Africa's Talking approved.")
 
 
 def load_settings(environ: Mapping[str, str]) -> Settings:
@@ -142,7 +149,8 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
     sms_backend = _read_choice(environ, "SMS_BACKEND", "console", SMS_BACKENDS)
     at_username = environ.get("AT_USERNAME", "").strip()
     at_api_key = environ.get("AT_API_KEY", "").strip()
-    _check_sms_settings(sms_backend, app_env, at_username, at_api_key)
+    at_sender_id = _read_sender_id(environ)
+    _check_sms_settings(sms_backend, app_env, at_username, at_api_key, at_sender_id)
 
     return Settings(
         app_env=app_env,
@@ -153,6 +161,7 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         sms_backend=sms_backend,
         at_username=at_username,
         at_api_key=at_api_key,
+        at_sender_id=at_sender_id,
         hsts_seconds=_read_int(environ, "HSTS_SECONDS", default=0, minimum=0),
         # PRD section 13: rate and service charge default from configuration
         default_rate_per_unit=_read_money(environ, "DEFAULT_RATE_PER_UNIT", "130.00"),

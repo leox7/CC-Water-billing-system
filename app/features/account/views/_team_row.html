@@ -31,7 +31,7 @@
             hx-post="/account/members/{{ person_id }}/reactivate" hx-disabled-elt="find button[type=submit]" hx-sync="this:drop" hx-target="#team-row-{{ person_id }}" hx-swap="outerHTML"
             data-error-target="#account-messages">
         {{ csrf_field(request) }}
-        <button class="button button-quiet" type="submit" id="reactivate-{{ person_id }}">Reactivate<span class="visually-hidden"> {{ full_name }}</span></button>
+        <button class="button button-quiet" type="submit" id="reactivate-{{ person_id }}"><span class="button-label"><span>Reactivate<span class="visually-hidden"> {{ full_name }}</span></span><span class="button-working">Reactivating...</span></span></button>
       </form>
       {% endif %}
       <button class="button button-quiet" type="button" id="password-open-{{ person_id }}"
@@ -53,7 +53,7 @@
         <div class="dialog-error" id="deactivate-error-{{ person_id }}"></div>
         <div class="modal-actions">
           <button class="button button-secondary" type="button" data-close-dialog>Keep active</button>
-          <button class="button button-danger" type="submit">Yes, deactivate</button>
+          <button class="button button-danger" type="submit"><span class="button-label"><span>Yes, deactivate</span><span class="button-working">Deactivating...</span></span></button>
         </div>
       </form>
     </dialog>
@@ -73,7 +73,7 @@
         <div class="dialog-error" id="password-error-{{ person_id }}"></div>
         <div class="modal-actions">
           <button class="button button-secondary" type="button" data-close-dialog>Cancel</button>
-          <button class="button button-primary" type="submit">Set password</button>
+          <button class="button button-primary" type="submit"><span class="button-label"><span>Set password</span><span class="button-working">Saving...</span></span></button>
         </div>
       </form>
     </dialog>
@@ -89,7 +89,7 @@
         <div class="dialog-error" id="delete-error-{{ person_id }}"></div>
         <div class="modal-actions">
           <button class="button button-secondary" type="button" data-close-dialog>Keep it</button>
-          <button class="button button-danger" type="submit">Yes, delete</button>
+          <button class="button button-danger" type="submit"><span class="button-label"><span>Yes, delete</span><span class="button-working">Deleting...</span></span></button>
         </div>
       </form>
     </dialog>

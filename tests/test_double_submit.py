@@ -24,7 +24,7 @@ def form_tags():
 
 def test_there_are_forms_to_check():
     assert sum(1 for _ in form_tags()) >= 20
-    assert sum(1 for _, tag in form_tags() if "hx-post=" in tag) == 13
+    assert sum(1 for _, tag in form_tags() if "hx-post=" in tag) == 14
 
 
 def test_every_htmx_form_that_changes_data_has_both_guards():
@@ -72,6 +72,23 @@ def test_no_template_has_an_inline_script_or_event_handler():
         text = template.read_text(encoding="utf-8")
         assert "<script" not in text.lower() or 'src="' in text, template
         assert not re.search(r"\son(click|submit|change|input)=", text), template
+
+
+def test_every_htmx_submit_button_shows_its_working_word():
+    # DESIGN_SYSTEM.md section 9, Loading: a small spinner and the working word ("Saving..."),
+    # from the submit_button macro or the same button-label markup written out
+    form_block = re.compile(r"<form\b[^>]*hx-post=[^>]*>.*?</form>", re.S)
+    submit_button_tag = re.compile(r"<button\b[^>]*type=\"submit\"[^>]*>(.*?)</button>", re.S)
+    missing = []
+    for template in TEMPLATES:
+        for block in form_block.findall(template.read_text(encoding="utf-8")):
+            if "submit_button(" in block:
+                continue
+            labels = submit_button_tag.findall(block)
+            if not labels or any("button-working" not in label for label in labels):
+                missing.append(template.relative_to(APP_FOLDER).as_posix())
+
+    assert missing == []
 
 
 def test_the_button_looks_busy_not_unavailable_while_htmx_disables_it():

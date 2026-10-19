@@ -83,6 +83,11 @@
   font-weight: 600;
 }
 
+/* the reason a message failed takes its own line under the type and status */
+.message-log-reason {
+  flex-basis: 100%;
+}
+
 /* Sent, Failed or Sending: a word and an icon, never colour alone */
 .sms-status {
   display: inline-flex;

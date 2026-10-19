@@ -1,4 +1,5 @@
 """Migration 0002: field agents become members, and the downgrade turns them back.
+Migration 0003: messages_log gets failure_reason, and the downgrade takes it away.
 
 Runs the real migrations on the test database (DB-5), and always leaves it at head with
 no rows behind.
@@ -56,3 +57,31 @@ def test_0002_turns_field_agents_into_members_and_back(test_engine):
     with test_engine.connect() as connection:
         assert role_column(connection) == "enum('owner','member')"
         assert connection.execute(text("SELECT COUNT(*) FROM users")).scalar() == 0
+
+
+def failure_reason_column(connection):
+    return connection.execute(text(
+        "SELECT column_type, is_nullable FROM information_schema.columns "
+        "WHERE table_schema = DATABASE() AND table_name = 'messages_log' AND column_name = 'failure_reason'"
+    )).one_or_none()
+
+
+def test_0003_adds_failure_reason_to_messages_log_and_takes_it_away(test_engine):
+    config = alembic_config()
+    command.downgrade(config, "0002")
+    try:
+        with test_engine.connect() as connection:
+            assert failure_reason_column(connection) is None
+
+        command.upgrade(config, "0003")
+        with test_engine.connect() as connection:
+            assert tuple(failure_reason_column(connection)) == ("varchar(255)", "YES")
+
+        command.downgrade(config, "0002")
+        with test_engine.connect() as connection:
+            assert failure_reason_column(connection) is None
+    finally:
+        command.upgrade(config, "head")
+
+    with test_engine.connect() as connection:
+        assert tuple(failure_reason_column(connection)) == ("varchar(255)", "YES")

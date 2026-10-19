@@ -91,19 +91,60 @@ def test_a_message_is_logged_as_pending_before_the_provider_is_asked_then_marked
 
 
 def test_a_failed_send_is_marked_failed_and_recorded_but_raises_nothing(db_session, owner, mary, bill, sms):
-    sms.failure = "Africa's Talking did not send it: InsufficientBalance"
+    sms.failure = "Africa's Talking balance is too low. Top up and press Send again."
 
     message = messaging.send_message(db_session, owner, bill, "bill", "Hi Mary,")
 
     assert message.status == "failed"
     assert message.provider_message_id is None
+    assert message.failure_reason == "Africa's Talking balance is too low. Top up and press Send again."
     # SMS-4: the attempt is kept, never dropped
     assert [row.status for row in messages(db_session, bill)] == ["failed"]
     row = audit_rows(db_session, "sms.failed")[0]
     assert (row.level, row.entity_id, row.customer_id) == ("warning", message.message_id, mary.customer_id)
     assert row.details == {"message_id": message.message_id, "type": "bill",
-                           "error": "Africa's Talking did not send it: InsufficientBalance"}
+                           "error": "Africa's Talking balance is too low. Top up and press Send again."}
     assert audit_rows(db_session, "sms.sent") == []
+
+
+@pytest.mark.parametrize("status_code,reason", [
+    (405, "Africa's Talking balance is too low. Top up and press Send again."),
+    (402, "The sender ID is not registered."),
+    (403, "That phone number is not valid."),
+    (407, "Africa's Talking could not send this message (code 407)."),
+    (None, "Africa's Talking sent an answer that could not be read."),
+])
+def test_each_plain_reason_is_stored_on_the_message_and_in_the_audit_details(db_session, owner, bill, monkeypatch,
+                                                                             status_code, reason):
+    # the real Africa's Talking code, answered by a stand-in, so what is stored is what it gives
+    import httpx
+
+    from app.core.config import load_settings
+    from app.features.messaging import providers
+
+    api_key = "test-key-not-a-real-one"
+    live = load_settings({"APP_ENV": "production", "DATABASE_URL": "mysql+pymysql://u:p@127.0.0.1/water_billing",
+                          "SESSION_SECRET": "x" * 48, "SMS_BACKEND": "africastalking", "AT_USERNAME": "ccwater",
+                          "AT_API_KEY": api_key, "AT_SENDER_ID": "CCH2O"})
+    recipients = [] if status_code is None else [{"statusCode": status_code, "number": "+254722123456",
+                                                  "status": "SomethingTheProviderSaid"}]
+    answer = httpx.Response(201, json={"SMSMessageData": {"Recipients": recipients}})
+    client = httpx.Client(transport=httpx.MockTransport(lambda request: answer))
+    monkeypatch.setattr("app.features.messaging.providers.send_sms",
+                        lambda settings, phone, text: providers.send_with_africastalking(live, phone, text, client))
+
+    message = messaging.send_message(db_session, owner, bill, "bill", "Hi Mary,")
+
+    db_session.expire_all()
+    stored = db_session.get(MessageLog, message.message_id)
+    assert (stored.status, stored.failure_reason) == ("failed", reason)
+    assert audit_rows(db_session, "sms.failed")[0].details["error"] == reason
+    for kept in (stored.failure_reason, str(audit_rows(db_session, "sms.failed")[0].details)):
+        assert api_key not in kept and "SomethingTheProviderSaid" not in kept and "722123456" not in kept
+
+
+def test_a_sent_message_has_no_failure_reason(db_session, owner, bill, sms):
+    assert messaging.send_message(db_session, owner, bill, "bill", "Hi Mary,").failure_reason is None
 
 
 def test_a_correction_is_logged_as_its_own_type(db_session, owner, bill, sms):
@@ -132,6 +173,7 @@ def test_a_crash_in_the_provider_code_is_a_failed_send_not_an_error(db_session, 
     failed = audit_rows(db_session, "sms.failed")[0]
     assert failed.details == {"message_id": message.message_id, "type": "bill",
                               "error": "The app failed while sending (RuntimeError). See the server log."}
+    assert message.failure_reason == "The app failed while sending (RuntimeError). See the server log."
     error = audit_rows(db_session, "system.error")[0]
     assert (error.level, error.entity_type, error.entity_id, error.customer_id) == (
         "error", "message", message.message_id, mary.customer_id)

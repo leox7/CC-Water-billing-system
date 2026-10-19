@@ -415,6 +415,14 @@ a:active {
     color: var(--accent);
   }
 
+  /* At 320px each tab is 64px wide, and a bold "Dashboard" is a little wider than that.
+     Slightly closer letters keep the 12px label without it touching the next tab. */
+  @media (max-width: 359px) {
+    .tab {
+      letter-spacing: -0.03em;
+    }
+  }
+
   h1 {
     font-size: 24px;
   }

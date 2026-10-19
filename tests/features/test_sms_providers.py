@@ -1,12 +1,13 @@
-"""messaging/providers.py (TASK-040, SMS-6, SEC-7).
+"""messaging/providers.py (TASK-040, SMS-3, SMS-6, SEC-7).
 
 Africa's Talking is never reached: each test hands the provider a stand-in transport that
-answers the way Africa's Talking does, and conftest.py makes every real network request fail.
+answers the way Africa's Talking's bulk SMS endpoint does, and conftest.py makes every real
+network request fail.
 """
 
 import json
 import logging
-from urllib.parse import parse_qs
+from pathlib import Path
 
 import httpx
 import pytest
@@ -18,18 +19,12 @@ from app.features.messaging.providers import SmsSendError
 FAKE_API_KEY = "test-key-not-a-real-one"
 
 
-def settings(backend, username="ccwater"):
+def settings(backend):
     environ = {"APP_ENV": "production", "DATABASE_URL": "mysql+pymysql://u:p@127.0.0.1/water_billing",
                "SESSION_SECRET": "x" * 48, "SMS_BACKEND": backend}
     if backend == "africastalking":
-        environ.update({"AT_USERNAME": username, "AT_API_KEY": FAKE_API_KEY})
+        environ.update({"AT_USERNAME": "ccwater", "AT_API_KEY": FAKE_API_KEY, "AT_SENDER_ID": "CCH2O"})
     return load_settings(environ)
-
-
-def sandbox_settings():
-    # the sandbox is a development tool, so it is built in the development environment
-    return load_settings({"APP_ENV": "development", "DATABASE_URL": "mysql+pymysql://u:p@127.0.0.1/dev",
-                          "SMS_BACKEND": "africastalking", "AT_USERNAME": "sandbox", "AT_API_KEY": FAKE_API_KEY})
 
 
 def africastalking_answering(status_code=201, body=None, seen=None):
@@ -40,7 +35,8 @@ def africastalking_answering(status_code=201, body=None, seen=None):
             seen.append(request)
         if body is None:
             answer = {"SMSMessageData": {"Message": "Sent to 1/1", "Recipients": [
-                {"statusCode": 101, "number": "+254722123456", "status": "Success", "messageId": "ATXid_abc123"}]}}
+                {"statusCode": 101, "number": "+254722123456", "status": "Success", "cost": "KES 0.8000",
+                 "messageId": "ATXid_abc123"}]}}
             return httpx.Response(status_code, json=answer)
         return httpx.Response(status_code, content=body)
 
@@ -49,7 +45,16 @@ def africastalking_answering(status_code=201, body=None, seen=None):
 
 def recipient_answer(status_code, status):
     return json.dumps({"SMSMessageData": {"Recipients": [
-        {"statusCode": status_code, "number": "+254722123456", "status": status}]}}).encode()
+        {"statusCode": status_code, "number": "+254722123456", "status": status, "cost": "0",
+         "messageId": "None"}]}}).encode()
+
+
+def failure_for(body, status_code=201):
+    """The reason send_with_africastalking gives when Africa's Talking answers with `body`."""
+    with pytest.raises(SmsSendError) as raised:
+        providers.send_with_africastalking(settings("africastalking"), "254722123456", "Hi",
+                                           client=africastalking_answering(status_code=status_code, body=body))
+    return str(raised.value)
 
 
 # ---- console ----
@@ -68,7 +73,7 @@ def test_the_console_backend_writes_the_text_to_the_log_and_sends_nothing(caplog
 
 # ---- Africa's Talking ----
 
-def test_africastalking_gets_the_number_the_text_and_the_key_in_a_header():
+def test_africastalking_gets_one_number_the_text_and_the_sender_id_as_json_to_the_bulk_endpoint():
     seen = []
 
     message_id = providers.send_with_africastalking(settings("africastalking"), "254722123456", "Hi Mary,",
@@ -76,38 +81,24 @@ def test_africastalking_gets_the_number_the_text_and_the_key_in_a_header():
 
     assert message_id == "ATXid_abc123"
     request = seen[0]
-    assert str(request.url) == providers.AFRICASTALKING_URL
+    assert request.method == "POST"
+    assert str(request.url) == providers.AFRICASTALKING_URL == "https://api.africastalking.com/version1/messaging/bulk"
     assert request.headers["apiKey"] == FAKE_API_KEY
+    assert request.headers["Accept"] == "application/json"
+    assert request.headers["Content-Type"] == "application/json"
     assert FAKE_API_KEY not in str(request.url)
-    form = parse_qs(request.content.decode())
-    assert form == {"username": ["ccwater"], "to": ["+254722123456"], "message": ["Hi Mary,"]}
+    assert json.loads(request.content) == {"username": "ccwater", "phoneNumbers": ["+254722123456"],
+                                           "message": "Hi Mary,", "senderId": "CCH2O"}
 
 
-def test_the_sandbox_account_goes_to_the_sandbox_address_with_its_own_username():
-    seen = []
+def test_only_the_bulk_endpoint_is_used():
+    # Premium SMS (content.africastalking.com) is a different product, and the old endpoint and
+    # its sandbox are gone
+    source = Path(providers.__file__).read_text(encoding="utf-8")
 
-    message_id = providers.send_with_africastalking(sandbox_settings(), "254722123456", "Hi Mary,",
-                                                    client=africastalking_answering(seen=seen))
-
-    assert message_id == "ATXid_abc123"
-    assert str(seen[0].url) == providers.SANDBOX_URL == "https://api.sandbox.africastalking.com/version1/messaging"
-    assert parse_qs(seen[0].content.decode())["username"] == ["sandbox"]
-    assert seen[0].headers["apiKey"] == FAKE_API_KEY
-
-
-def test_a_live_account_never_goes_to_the_sandbox_address():
-    seen = []
-
-    providers.send_with_africastalking(settings("africastalking"), "254722123456", "Hi",
-                                       client=africastalking_answering(seen=seen))
-
-    assert str(seen[0].url) == providers.AFRICASTALKING_URL
-
-
-def test_send_sms_with_the_sandbox_fails_cleanly_when_the_network_is_down():
-    # conftest.py stops every real request; the sandbox is no exception in tests
-    with pytest.raises(SmsSendError, match="Could not reach Africa's Talking"):
-        providers.send_sms(sandbox_settings(), "254722123456", "Hi")
+    assert "content.africastalking.com" not in source
+    assert "sandbox.africastalking.com" not in source
+    assert source.count("https://") == 1
 
 
 @pytest.mark.parametrize("status_code", [100, 101, 102])
@@ -121,30 +112,48 @@ def test_processed_sent_and_queued_all_count_as_sent(status_code):
     assert message_id == "ATXid_1"
 
 
-def test_a_number_africastalking_refuses_is_a_failed_send_with_its_reason():
-    client = africastalking_answering(body=recipient_answer(403, "InvalidPhoneNumber"))
+@pytest.mark.parametrize("status_code,status,reason", [
+    (405, "InsufficientBalance", "Africa's Talking balance is too low. Top up and press Send again."),
+    (402, "InvalidSenderId", "The sender ID is not registered."),
+    (403, "InvalidPhoneNumber", "That phone number is not valid."),
+    (401, "RiskHold", "Africa's Talking could not send this message (code 401)."),
+    (404, "UnsupportedNumberType", "Africa's Talking could not send this message (code 404)."),
+    (406, "UserInBlacklist", "Africa's Talking could not send this message (code 406)."),
+    (407, "CouldNotRoute", "Africa's Talking could not send this message (code 407)."),
+    (409, "DoNotDisturbRejection", "Africa's Talking could not send this message (code 409)."),
+    (500, "InternalServerError", "Africa's Talking could not send this message (code 500)."),
+    (501, "GatewayError", "Africa's Talking could not send this message (code 501)."),
+    (502, "RejectedByGateway", "Africa's Talking could not send this message (code 502)."),
+])
+def test_each_failure_code_gives_its_plain_reason_never_the_providers_text(status_code, status, reason):
+    given = failure_for(recipient_answer(status_code, status))
 
-    with pytest.raises(SmsSendError) as raised:
-        providers.send_with_africastalking(settings("africastalking"), "254722123456", "Hi", client=client)
-
-    assert str(raised.value) == "Africa's Talking did not send it: InvalidPhoneNumber"
-
-
-def test_a_low_balance_is_a_failed_send():
-    client = africastalking_answering(body=recipient_answer(405, "InsufficientBalance"))
-
-    with pytest.raises(SmsSendError, match="InsufficientBalance"):
-        providers.send_with_africastalking(settings("africastalking"), "254722123456", "Hi", client=client)
+    assert given == reason
+    # SMS-3: the app's own sentence, never what Africa's Talking wrote, the key or the number
+    assert status not in given
+    assert FAKE_API_KEY not in given and "722123456" not in given
 
 
-def test_a_wrong_key_is_a_failed_send_that_never_shows_the_key():
-    client = africastalking_answering(status_code=401, body=b"The supplied authentication is invalid")
+def test_a_status_code_sent_as_text_is_still_read():
+    assert failure_for(recipient_answer("405", "InsufficientBalance")).startswith("Africa's Talking balance is too low")
 
-    with pytest.raises(SmsSendError) as raised:
-        providers.send_with_africastalking(settings("africastalking"), "254722123456", "Hi", client=client)
 
-    assert str(raised.value) == "Africa's Talking answered with status 401"
-    assert FAKE_API_KEY not in str(raised.value)
+@pytest.mark.parametrize("body", [
+    b"<html>Gateway error</html>",
+    json.dumps({"SMSMessageData": {"Message": "InvalidSenderId", "Recipients": []}}).encode(),
+    json.dumps({"SMSMessageData": {}}).encode(),
+    json.dumps({"SMSMessageData": {"Recipients": [{"status": "Success"}]}}).encode(),
+    json.dumps({"SMSMessageData": {"Recipients": [{"statusCode": "soon"}]}}).encode(),
+], ids=["not json", "no recipient", "no recipient list", "no status code", "status code not a number"])
+def test_an_answer_with_no_readable_recipient_is_a_failed_send(body):
+    assert failure_for(body) == "Africa's Talking sent an answer that could not be read."
+
+
+def test_a_wrong_key_is_a_failed_send_that_never_shows_the_key_or_the_answer():
+    given = failure_for(f"The supplied authentication is invalid: {FAKE_API_KEY}".encode(), status_code=401)
+
+    assert given == "Africa's Talking refused the request (HTTP 401). Check AT_USERNAME and AT_API_KEY."
+    assert FAKE_API_KEY not in given and "authentication" not in given
 
 
 def test_no_answer_in_time_is_a_failed_send():
@@ -153,15 +162,10 @@ def test_no_answer_in_time_is_a_failed_send():
 
     client = httpx.Client(transport=httpx.MockTransport(too_slow))
 
-    with pytest.raises(SmsSendError, match="did not answer within 10 seconds"):
+    with pytest.raises(SmsSendError) as raised:
         providers.send_with_africastalking(settings("africastalking"), "254722123456", "Hi", client=client)
 
-
-def test_an_answer_that_cannot_be_read_is_a_failed_send():
-    client = africastalking_answering(body=b"<html>Gateway error</html>")
-
-    with pytest.raises(SmsSendError, match="could not be read"):
-        providers.send_with_africastalking(settings("africastalking"), "254722123456", "Hi", client=client)
+    assert str(raised.value) == "Africa's Talking did not answer within 10 seconds. Press Send again."
 
 
 def test_a_bug_while_sending_is_left_for_the_messaging_service_to_record():
@@ -180,8 +184,11 @@ def test_a_bug_while_sending_is_left_for_the_messaging_service_to_record():
 
 def test_a_test_that_forgets_the_stand_in_cannot_reach_africastalking():
     # send_sms picks Africa's Talking for this setting, and the network guard stops it
-    with pytest.raises(SmsSendError, match="Could not reach Africa's Talking"):
+    with pytest.raises(SmsSendError) as raised:
         providers.send_sms(settings("africastalking"), "254722123456", "Hi")
+
+    assert str(raised.value) == ("Could not reach Africa's Talking. Check the server's internet connection, "
+                                 "then press Send again.")
 
 
 def test_tests_run_with_the_console_backend():

@@ -1,0 +1,15 @@
+{
+  "name": "C&C H2O Water Billing",
+  "short_name": "C&C H2O",
+  "description": "Meter readings, bills, SMS and payments for C&C H2O Water Supplies.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "white",
+  "icons": [
+    {"src": "/static/shared/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/static/shared/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/static/shared/img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

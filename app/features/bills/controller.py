@@ -8,6 +8,7 @@ user (require_login).
 - /bills/{bill_id}: the breakdown in the order the customer sees it, and the SMS attempts.
 - /bills/{bill_id}/resend: Send again, sent by htmx. The answer is the Messages card again.
   Without htmx it is a normal post that comes back to the bill page.
+The Payments card on the bill page, and its routes, belong to payments/controller.py.
 """
 
 from typing import Any
@@ -21,6 +22,7 @@ from app.core.deps import require_login
 from app.core.errors import AppError, render_error, unexpected_error
 from app.core.templating import is_htmx_request, templates
 from app.features.bills import service as bills
+from app.features.payments import service as payments
 from app.models import User
 
 router = APIRouter()
@@ -30,6 +32,8 @@ DETAIL_PAGE = "bills/views/detail.html"
 MESSAGE_LOG = "bills/views/_message_log.html"
 # How a Send again that was a normal form post ended, from the address of the bill page
 RESEND_NOTICES = ("sent", "failed")
+# ...and how a payment form that was a normal post ended
+PAYMENT_SAVED_NOTICE = "payment_saved"
 
 
 @router.get("/bills")
@@ -64,7 +68,11 @@ def bill_page(
     try:
         context = {"user": user, "details": bills.bill_details(db, bill_id),
                    # only a known word is used, never what was typed in the address
-                   "resend_status": notice if notice in RESEND_NOTICES else None}
+                   "resend_status": notice if notice in RESEND_NOTICES else None,
+                   # after a payment saved without htmx (see payments/controller.py)
+                   "payment_saved": notice == PAYMENT_SAVED_NOTICE,
+                   # the payment form's date starts at today
+                   "today": payments.today()}
         return templates.TemplateResponse(request, DETAIL_PAGE, context)
     except AppError as exc:
         return render_error(request, exc)

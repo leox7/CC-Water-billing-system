@@ -1,0 +1,38 @@
+{#
+  The Reports screen (DESIGN_SYSTEM.md section 8, Reports): a menu of four cards, arrears
+  first. Each card is one link to its report. Needs `user` and `period` (this month).
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Reports{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/reports/reports.css">{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">{{ period|period_label }}</p>
+    <h1>Reports</h1>
+  </div>
+</div>
+
+{% set report_links = [
+  ("/reports/arrears", "alert-circle", "Who owes money", "Arrears: every customer with a balance, and since which month."),
+  ("/reports/payments", "receipt", "Payments received", "Every payment, by customer and by month, with its M-Pesa code."),
+  ("/reports/customers", "users", "All customers", "Each customer's meter, location and latest bill."),
+  ("/reports/summary", "chart-bar", "This month at a glance", "What was billed, collected and is still owed in a month."),
+] %}
+<ul class="report-menu" aria-label="Reports">
+  {% for href, icon_name, title, line in report_links %}
+  <li>
+    <a class="card report-link" href="{{ href }}">
+      <span class="report-link-icon">{{ icon(icon_name, 24) }}</span>
+      <span class="report-link-text">
+        <span class="card-title">{{ title }}</span>
+        <span class="card-description">{{ line }}</span>
+      </span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,65 @@
+{#
+  REP-1, the arrears report: every customer whose latest bill still has something owed, the
+  largest debt first, and the month the debt began. Each row opens that latest bill, where a
+  payment is recorded. Needs `user`, `report` (ArrearsReport) and `list_limit`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Who owes money{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/reports/reports.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/reports">{{ icon("arrow-left", 24) }}<span>Reports</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">Arrears</p>
+    <h1>Who owes money</h1>
+  </div>
+  {% include "reports/views/_back.html" %}
+</div>
+
+{% if report.rows %}
+<p class="report-total">
+  {{ report.customer_count }} {{ "customer owes" if report.customer_count == 1 else "customers owe" }}
+  <span class="mono">{{ report.total_owed|ksh }}</span> in total.
+</p>
+<section class="card table-card" aria-label="Customers who owe money">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Customer</th>
+        <th scope="col" class="cell-number">Amount owed</th>
+        <th scope="col">In arrears since</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in report.rows %}
+      <tr>
+        <td>
+          <a class="cell-title stretched-link" href="/bills/{{ row.bill.bill_id }}">{{ row.customer.first_name }} {{ row.customer.last_name }}</a>
+          <span class="cell-sub"><span class="mono">{{ row.customer.meter_number }}</span> · {{ row.customer.location }}</span>
+        </td>
+        <td class="cell-number" data-label="Owes">{{ row.amount_owed|ksh }}</td>
+        <td data-label="In arrears since">{{ row.since|period_label }}</td>
+        <td class="cell-end">{% with status = row.bill.status %}{% include "partials/status_badge.html" %}{% endwith %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% if report.customer_count > list_limit %}
+<p class="list-note text-help">Showing the {{ list_limit }} largest debts. The total counts everyone.</p>
+{% endif %}
+{% else %}
+<section class="card empty-state">
+  {{ icon("circle-check", 32) }}
+  <p>Nobody owes money right now.</p>
+  <a class="button button-secondary" href="/bills">{{ icon("receipt") }}Open the bills</a>
+</section>
+{% endif %}
+{% endblock %}

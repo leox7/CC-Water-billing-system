@@ -1,0 +1,66 @@
+{#
+  REP-4, the monthly summary for one month: billed (new charges only), collected (payments
+  dated in the month) and still outstanding on that month's bills.
+  Needs `user`, `summary` (MonthlySummary, or none after a refused month), `month` and
+  `months`. After a refused month, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes with context %}
+
+{% block title %}Month at a glance{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/reports/reports.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/reports">{{ icon("arrow-left", 24) }}<span>Reports</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">{{ summary.period|period_label if summary else "Monthly summary" }}</p>
+    <h1>Month at a glance</h1>
+  </div>
+  {% include "reports/views/_back.html" %}
+</div>
+
+<form class="filter-form" method="get" action="/reports/summary" role="search" aria-label="Choose the month">
+  <div class="field">
+    <label class="field-label" for="field-month">Month</label>
+    <select class="select" id="field-month" name="month"{{ invalid_attributes("month") }}>
+      {# the month shown is always on the list, even before it has any bills #}
+      {% if summary and summary.period not in months %}
+      <option value="{{ summary.period }}" selected>{{ summary.period|period_label }}</option>
+      {% endif %}
+      {% for period in months %}
+      <option value="{{ period }}"{% if period == month %} selected{% endif %}>{{ period|period_label }}</option>
+      {% endfor %}
+    </select>
+    {{ field_error("month") }}
+  </div>
+  <button class="button button-secondary" type="submit">{{ icon("search") }}Show month</button>
+</form>
+
+{% if error %}
+  {% set errors = [error] %}
+  {% include "partials/form_errors.html" %}
+{% else %}
+<div class="stat-grid summary-grid">
+  {% with label = "Billed", figure = summary.billed|ksh,
+          note = (summary.bill_count ~ (" bill" if summary.bill_count == 1 else " bills") ~ ", new charges only") %}
+    {% include "partials/stat_card.html" %}
+  {% endwith %}
+  {% with label = "Collected", figure = summary.collected|ksh,
+          note = (summary.payment_count ~ (" payment" if summary.payment_count == 1 else " payments") ~ " dated this month") %}
+    {% include "partials/stat_card.html" %}
+  {% endwith %}
+  {% with label = "Still outstanding", figure = summary.outstanding|ksh, note = "Unpaid on this month's bills" %}
+    {% include "partials/stat_card.html" %}
+  {% endwith %}
+</div>
+<p class="list-note text-help">
+  Billed is the water and fixed charges of this month's bills, without balances carried in.
+  Still outstanding includes those carried balances, because each bill's total holds them.
+</p>
+{% endif %}
+{% endblock %}

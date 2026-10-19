@@ -136,3 +136,13 @@ window.addEventListener("pageshow", function () {
     }
   });
 });
+
+// The service worker that makes the app installable (sw.js). Browsers allow one only over
+// HTTPS or on localhost; where it cannot start, the app works as before, just not installable.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js").catch(function (error) {
+      console.warn("The app could not be made installable:", error);
+    });
+  });
+}

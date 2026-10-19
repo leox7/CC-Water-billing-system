@@ -3,7 +3,7 @@
 -- Written from docs/PRD.md section 6, docs/AUDIT_LOG.md section 3 and
 -- docs/DEPLOYMENT.md. The runnable source of truth is the Alembic migrations
 -- in alembic/versions. This file is regenerated from them and matches the
--- schema at head (migration 0002: the roles are owner and member).
+-- schema at head (migration 0003: a failed SMS keeps its failure reason).
 --
 -- MySQL 8.0, utf8mb4. Money columns are DECIMAL, never float.
 
@@ -108,6 +108,8 @@ CREATE TABLE messages_log (
   provider_message_id  VARCHAR(100) NULL,
   created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- SMS-3: a plain reason chosen by the app, empty unless the message failed (migration 0003)
+  failure_reason       VARCHAR(255) NULL,
   INDEX idx_messages_bill (bill_id, created_at),
   INDEX idx_messages_customer (customer_id),
   CONSTRAINT fk_messages_bill     FOREIGN KEY (bill_id)     REFERENCES bills (bill_id) ON DELETE SET NULL,

@@ -21,6 +21,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 os.environ["APP_ENV"] = "test"
 # Tests must not depend on the developer's .env, which may turn debug on.
 os.environ["DEBUG"] = "false"
+# ...or name the africastalking backend. Tests always use the console backend (SMS-6).
+os.environ["SMS_BACKEND"] = "console"
 load_dotenv(PROJECT_ROOT / ".env")
 # Lets tests that need no database import the app when .env does not exist yet.
 # The database fixtures below fail with a clear message if this is still in use.

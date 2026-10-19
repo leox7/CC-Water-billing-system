@@ -22,7 +22,7 @@ from app.core.templating import ksh
 from app.features.audit import service as audit
 from app.features.messaging import service as messaging
 from app.features.messaging import templates as sms_templates
-from app.models import Bill, Customer, MessageLog, MeterReading, User
+from app.models import Bill, Customer, MessageLog, MeterReading, Payment, User
 
 CENTS = Decimal("0.01")
 NOTHING = Decimal("0.00")
@@ -51,6 +51,12 @@ class BillDetails:
     reading: MeterReading
     # every SMS attempt for this bill, oldest first
     messages: list[MessageLog]
+    # every payment recorded on this bill, oldest first (PAY-3)
+    payments: list[Payment]
+    # PAY-3: payments are recorded on the customer's latest bill only
+    latest_bill: Bill
+    # what is still owed on this bill, never below 0
+    still_owed: Decimal
 
 
 def list_bills(db: Session, period: str = "", status: str = "") -> list[BillRow]:
@@ -98,16 +104,31 @@ def get_bill(db: Session, bill_id: int) -> Bill:
 
 
 def bill_details(db: Session, bill_id: int) -> BillDetails:
-    """A bill with its customer, its reading and its SMS attempts, for the bill page."""
+    """A bill with its customer, its reading, its SMS attempts and its payments, for the bill page."""
     try:
         bill = get_bill(db, bill_id)
-        query = select(MessageLog).where(MessageLog.bill_id == bill_id).order_by(MessageLog.message_id)
+        messages = db.scalars(select(MessageLog).where(MessageLog.bill_id == bill_id).order_by(MessageLog.message_id))
+        payments = db.scalars(select(Payment).where(Payment.bill_id == bill_id)
+                              .order_by(Payment.payment_date, Payment.payment_id))
         return BillDetails(bill, db.get(Customer, bill.customer_id), db.get(MeterReading, bill.reading_id),
-                           list(db.scalars(query)))
+                           list(messages), list(payments), latest_bill(db, bill.customer_id), amount_unpaid(bill))
     except AppError:
         raise
     except Exception as exc:
         raise unexpected_error(exc, "load the bill") from exc
+
+
+def latest_bill(db: Session, customer_id: int) -> Bill | None:
+    """PAY-3: the bill for the customer's latest month, the only one that takes payments.
+    None when the customer has no bill yet."""
+    try:
+        query = (
+            select(Bill).join(MeterReading, MeterReading.reading_id == Bill.reading_id)
+            .where(Bill.customer_id == customer_id).order_by(MeterReading.billing_period.desc())
+        )
+        return db.scalars(query.limit(1)).first()
+    except Exception as exc:
+        raise unexpected_error(exc, "load the latest bill") from exc
 
 
 def resend_sms(db: Session, actor: User, bill_id: int) -> MessageLog:

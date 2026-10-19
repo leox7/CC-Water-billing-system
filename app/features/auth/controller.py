@@ -13,9 +13,8 @@ from app.models import User
 
 router = APIRouter()
 
-# Where a person lands after signing in. The dashboard is built in a later task
-# (TASK-063); until then it is the Account screen.
-HOME_PATH = "/account"
+# Where a person lands after signing in: the dashboard
+HOME_PATH = "/"
 
 # Messages the login page can show, chosen by ?notice= in the address. Only these fixed
 # words can appear, never anything typed into the address.

@@ -1,0 +1,104 @@
+{#
+  REP-2, payment history: every payment ever recorded, newest first, narrowed by customer and
+  by the month it was paid. Each row opens the bill the payment went on.
+  Needs `user`, `history` (PaymentHistory, or none after a refused filter), `customer` and
+  `month` (the filters, "" for all), `customers`, `months` and `list_limit`. After a refused
+  filter, `error`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/forms.html" import field_error, invalid_attributes with context %}
+
+{% block title %}Payments received{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/reports/reports.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/reports">{{ icon("arrow-left", 24) }}<span>Reports</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">Payment history</p>
+    <h1>Payments received</h1>
+  </div>
+  {% include "reports/views/_back.html" %}
+</div>
+
+<form class="filter-form" method="get" action="/reports/payments" role="search" aria-label="Filter the payments">
+  <div class="field">
+    <label class="field-label" for="field-customer">Customer</label>
+    <select class="select" id="field-customer" name="customer"{{ invalid_attributes("customer") }}>
+      <option value="">All customers</option>
+      {% for choice in customers %}
+      <option value="{{ choice.customer_id }}"{% if choice.customer_id|string == customer %} selected{% endif %}>{{ choice.first_name }} {{ choice.last_name }} ({{ choice.meter_number }})</option>
+      {% endfor %}
+    </select>
+    {{ field_error("customer") }}
+  </div>
+  <div class="field">
+    <label class="field-label" for="field-month">Month paid</label>
+    <select class="select" id="field-month" name="month"{{ invalid_attributes("month") }}>
+      <option value="">All months</option>
+      {% for period in months %}
+      <option value="{{ period }}"{% if period == month %} selected{% endif %}>{{ period|period_label }}</option>
+      {% endfor %}
+    </select>
+    {{ field_error("month") }}
+  </div>
+  <button class="button button-secondary" type="submit">{{ icon("search") }}Show payments</button>
+</form>
+
+{% if error %}
+  {% set errors = [error] %}
+  {% include "partials/form_errors.html" %}
+{% elif history.rows %}
+<p class="report-total">
+  {{ history.payment_count }} {{ "payment" if history.payment_count == 1 else "payments" }},
+  <span class="mono">{{ history.total|ksh }}</span> in total.
+</p>
+<section class="card table-card" aria-label="Payment list">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Customer</th>
+        <th scope="col">Date paid</th>
+        <th scope="col">M-Pesa code</th>
+        <th scope="col">Bill for</th>
+        <th scope="col" class="cell-number">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in history.rows %}
+      <tr>
+        <td>
+          <a class="cell-title stretched-link" href="/bills/{{ row.payment.bill_id }}">{{ row.customer.first_name }} {{ row.customer.last_name }}</a>
+          <span class="cell-sub mono">{{ row.customer.meter_number }}</span>
+        </td>
+        <td data-label="Paid">{{ row.payment.payment_date|date_label }}</td>
+        {# PAY-1: M-Pesa is the only way to pay; the code is optional #}
+        <td data-label="M-Pesa">{% if row.payment.mpesa_reference %}<span class="mono">{{ row.payment.mpesa_reference }}</span>{% else %}No code{% endif %}</td>
+        <td data-label="Bill for">{{ row.bill_period|period_label }}</td>
+        <td class="cell-number cell-end">{{ row.payment.amount|ksh }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% if history.payment_count > list_limit %}
+<p class="list-note text-help">Showing the newest {{ list_limit }} payments. The total counts them all. Pick a customer or a month to see the others.</p>
+{% endif %}
+{% elif customer or month %}
+<section class="card empty-state">
+  {{ icon("receipt", 32) }}
+  <p>No payments match these filters.</p>
+  <a class="button button-secondary" href="/reports/payments">Show all payments</a>
+</section>
+{% else %}
+<section class="card empty-state">
+  {{ icon("receipt", 32) }}
+  <p>No payments yet. A payment is recorded on its bill.</p>
+  <a class="button button-secondary" href="/bills">{{ icon("receipt") }}Open the bills</a>
+</section>
+{% endif %}
+{% endblock %}

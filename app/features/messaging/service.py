@@ -139,6 +139,7 @@ def _mark_sent(db: Session, actor: User, message: MessageLog, provider_message_i
 
 def _mark_failed(db: Session, actor: User, message: MessageLog, reason: str) -> MessageLog:
     message.status = "failed"
+    message.failure_reason = reason
     audit.record_event(
         db, "sms.failed", f"{message.message_type.capitalize()} SMS {message.message_id} failed for bill {message.bill_id}",
         actor=actor, entity=message, customer_id=message.customer_id,

@@ -59,8 +59,8 @@ def test_an_anonymous_htmx_request_gets_hx_redirect(app_client):
     assert response.headers["HX-Redirect"] == "/login"
 
 
-def test_only_login_register_and_health_are_public():
-    assert PUBLIC_PATHS == {"/login", "/register", "/health"}
+def test_only_login_register_health_and_the_pwa_files_are_public():
+    assert PUBLIC_PATHS == {"/login", "/register", "/health", "/sw.js", "/manifest.json"}
 
 
 def test_the_health_check_needs_no_sign_in(app_client):

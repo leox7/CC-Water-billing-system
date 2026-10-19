@@ -24,6 +24,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{% endblock %} | C&amp;C H2O</title>
   <link rel="icon" href="/static/shared/img/icon-192.png">
+  {# PWA: lets a phone add the app to its home screen (TASK-065) #}
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/static/shared/img/icon-192.png">
   <link rel="stylesheet" href="/static/shared/css/tokens.css">
   <link rel="stylesheet" href="/static/shared/css/base.css">
   <link rel="stylesheet" href="/static/shared/css/components.css">

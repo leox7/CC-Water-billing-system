@@ -113,67 +113,79 @@ def test_unknown_sms_backend_is_refused():
         load_settings(development_environ(SMS_BACKEND="whatsapp"))
 
 
+def live_sms(**overrides: str) -> dict[str, str]:
+    environ = {"SMS_BACKEND": "africastalking", "AT_USERNAME": "ccwater", "AT_API_KEY": "k", "AT_SENDER_ID": "CCH2O"}
+    environ.update(overrides)
+    return environ
+
+
 def test_real_sms_backend_is_refused_outside_production():
     # SMS-6: a real SMS is never sent from a dev or test run
-    environ = development_environ(SMS_BACKEND="africastalking", AT_USERNAME="u", AT_API_KEY="k")
+    with pytest.raises(ConfigError, match="production only") as raised:
+        load_settings(development_environ(**live_sms()))
 
-    with pytest.raises(ConfigError, match="production only"):
+    assert "SMS_BACKEND=console" in str(raised.value)
+
+
+@pytest.mark.parametrize("app_env", ["development", "production"])
+def test_the_sandbox_is_refused_because_the_bulk_endpoint_has_none(app_env):
+    environ = (production_environ if app_env == "production" else development_environ)(**live_sms(AT_USERNAME="sandbox"))
+
+    with pytest.raises(ConfigError) as raised:
         load_settings(environ)
 
-
-def test_the_refusal_points_to_the_sandbox():
-    environ = development_environ(SMS_BACKEND="africastalking", AT_USERNAME="ccwater", AT_API_KEY="k")
-
-    with pytest.raises(ConfigError, match="AT_USERNAME=sandbox"):
-        load_settings(environ)
+    assert str(raised.value) == ("Africa's Talking's bulk SMS endpoint has no sandbox, so AT_USERNAME=sandbox "
+                                 "cannot be used. Use SMS_BACKEND=console outside production.")
 
 
-@pytest.mark.parametrize("app_env", ["development", "test"])
-def test_the_sandbox_may_be_used_outside_production(app_env):
-    # it sends nothing to a real phone, so SMS-6 and SEC-7 still hold
-    environ = development_environ(SMS_BACKEND="africastalking", AT_USERNAME="sandbox", AT_API_KEY="sandbox-key",
-                                  APP_ENV=app_env, TEST_DATABASE_URL="mysql+pymysql://u:p@127.0.0.1/x_test")
-
-    settings = load_settings(environ)
-
-    assert settings.uses_sandbox is True
-
-
-def test_the_sandbox_still_needs_its_api_key():
-    environ = development_environ(SMS_BACKEND="africastalking", AT_USERNAME="sandbox")
-
-    with pytest.raises(ConfigError, match="AT_API_KEY"):
-        load_settings(environ)
-
-
-def test_the_sandbox_is_refused_in_production():
-    environ = production_environ(SMS_BACKEND="africastalking", AT_USERNAME="sandbox", AT_API_KEY="k")
-
-    with pytest.raises(ConfigError, match="sandbox is for development only"):
-        load_settings(environ)
-
-
-def test_the_live_account_does_not_use_the_sandbox():
-    settings = load_settings(production_environ(SMS_BACKEND="africastalking", AT_USERNAME="ccwater", AT_API_KEY="k"))
-
-    assert settings.uses_sandbox is False
-
-
-def test_the_console_backend_never_uses_the_sandbox():
-    assert load_settings(development_environ(AT_USERNAME="sandbox")).uses_sandbox is False
+def test_the_console_backend_ignores_a_sandbox_username():
+    assert load_settings(development_environ(AT_USERNAME="sandbox")).sms_backend == "console"
 
 
 def test_real_sms_backend_needs_credentials_in_production():
     with pytest.raises(ConfigError, match="AT_USERNAME"):
-        load_settings(production_environ(SMS_BACKEND="africastalking"))
+        load_settings(production_environ(SMS_BACKEND="africastalking", AT_SENDER_ID="CCH2O"))
 
 
-def test_real_sms_backend_is_allowed_in_production_with_credentials():
-    settings = load_settings(
-        production_environ(SMS_BACKEND="africastalking", AT_USERNAME="u", AT_API_KEY="k")
-    )
+def test_real_sms_backend_needs_a_sender_id_in_production():
+    # senderId is required on every bulk request, so the app does not start without one
+    with pytest.raises(ConfigError) as raised:
+        load_settings(production_environ(**live_sms(AT_SENDER_ID="")))
+
+    assert str(raised.value) == ("AT_SENDER_ID is needed for africastalking. Set it to the sender ID "
+                                 "Africa's Talking approved.")
+
+
+def test_real_sms_backend_is_allowed_in_production_with_credentials_and_a_sender_id():
+    settings = load_settings(production_environ(**live_sms()))
 
     assert settings.sms_backend == "africastalking"
+    assert settings.at_sender_id == "CCH2O"
+
+
+@pytest.mark.parametrize("app_env", ["development", "production"])
+def test_the_console_backend_works_without_a_sender_id(app_env):
+    environ = production_environ() if app_env == "production" else development_environ()
+
+    assert load_settings(environ).at_sender_id == ""
+
+
+@pytest.mark.parametrize("sender_id", ["C", "CC_H2O-2026", "cch2o", "  CCH2O  "])
+def test_a_good_sender_id_is_accepted(sender_id):
+    settings = load_settings(production_environ(**live_sms(AT_SENDER_ID=sender_id)))
+
+    assert settings.at_sender_id == sender_id.strip()
+
+
+@pytest.mark.parametrize("sender_id", ["CC H2O", "CCH2OWATER12", "C&C", "CCH2O!", "C.C", "MAJI\tYA"])
+@pytest.mark.parametrize("backend", ["console", "africastalking"])
+def test_a_bad_sender_id_stops_the_app(sender_id, backend):
+    environ = production_environ(**live_sms(SMS_BACKEND=backend, AT_SENDER_ID=sender_id))
+
+    with pytest.raises(ConfigError) as raised:
+        load_settings(environ)
+
+    assert str(raised.value) == "AT_SENDER_ID must be 1 to 11 characters: letters, digits, - or _, with no spaces."
 
 
 @pytest.mark.parametrize(
@@ -193,8 +205,7 @@ def test_bad_numbers_are_refused(name, value):
 
 
 def test_secrets_are_not_in_the_settings_repr():
-    settings = load_settings(production_environ(SMS_BACKEND="africastalking",
-                                                 AT_USERNAME="u", AT_API_KEY="key-value-123"))
+    settings = load_settings(production_environ(**live_sms(AT_API_KEY="key-value-123")))
 
     text = repr(settings)
 

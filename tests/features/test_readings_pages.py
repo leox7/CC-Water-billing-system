@@ -109,6 +109,8 @@ def test_the_form_shows_last_month_filled_in_and_today_as_the_date(as_member, ma
     assert f'value="{readings.today().isoformat()}"' in page
     assert 'inputmode="decimal"' in page
     assert "Save reading" in page
+    # the live line is never an empty gap before anything is typed (TASK-068)
+    assert "Type the reading to see the units used." in page
 
 
 def test_a_first_reading_asks_for_the_previous_reading_and_opening_balance(as_member, mary):

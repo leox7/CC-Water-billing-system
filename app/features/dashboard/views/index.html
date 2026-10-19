@@ -1,0 +1,100 @@
+{#
+  The dashboard (DASH-1, DESIGN_SYSTEM.md section 8): four stat cards and the "Needs attention"
+  list of customers who owe money. Each row opens that customer's latest bill. Every figure
+  comes from the same functions as the reports. Needs `user` and `dashboard` (Dashboard).
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% set summary = dashboard.summary %}
+{% set arrears = dashboard.arrears %}
+
+{% block title %}Dashboard{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/dashboard/dashboard.css">{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">Welcome, {{ user.first_name }}</p>
+    <h1>Dashboard</h1>
+  </div>
+</div>
+
+<div class="stack">
+  <div class="stat-grid">
+    {% if dashboard.active_customers %}
+      {% set locations_note = "Across " ~ dashboard.location_count ~ (" location" if dashboard.location_count == 1 else " locations") %}
+    {% else %}
+      {% set locations_note = "No active customers yet" %}
+    {% endif %}
+    {% with label = "Active customers", figure = dashboard.active_customers, note = locations_note %}
+      {% include "partials/stat_card.html" %}
+    {% endwith %}
+
+    {# DASH-1: the card names the month, and says so when nothing is billed yet #}
+    {% set month_name = (summary.period|period_label).split(" ")[0] %}
+    {% if summary.bill_count %}
+      {% set billed_note = summary.bill_count ~ (" bill" if summary.bill_count == 1 else " bills") ~ " for " ~ summary.period|period_label %}
+    {% else %}
+      {% set billed_note = "No bills yet for " ~ month_name %}
+    {% endif %}
+    {% with label = "Billed in " ~ month_name, figure = summary.billed|ksh, note = billed_note %}
+      {% include "partials/stat_card.html" %}
+    {% endwith %}
+
+    {% if arrears.customer_count %}
+      {% set owing_note = "Across " ~ arrears.customer_count ~ (" customer" if arrears.customer_count == 1 else " customers") %}
+    {% else %}
+      {% set owing_note = "Nobody owes money" %}
+    {% endif %}
+    {% with label = "Outstanding balance", figure = arrears.total_owed|ksh, note = owing_note %}
+      {% include "partials/stat_card.html" %}
+    {% endwith %}
+
+    {% with label = "Unpaid bills", figure = arrears.partial_count + arrears.unpaid_count,
+            note = arrears.partial_count ~ " partial, " ~ arrears.unpaid_count ~ " unpaid" %}
+      {% include "partials/stat_card.html" %}
+    {% endwith %}
+  </div>
+
+  <section class="card" aria-labelledby="attention-title">
+    <h2 class="card-title" id="attention-title">Needs attention</h2>
+    <p class="card-description">Customers who owe money on their latest bill, the largest balance first.</p>
+    {% if dashboard.needs_attention %}
+    <div class="table-card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Customer</th>
+            <th scope="col">Meter no.</th>
+            <th scope="col" class="cell-number">Balance</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in dashboard.needs_attention %}
+          <tr>
+            <td>
+              <a class="cell-title stretched-link" href="/bills/{{ row.bill.bill_id }}">{{ row.customer.first_name }} {{ row.customer.last_name }}</a>
+              <span class="cell-sub">{{ row.customer.location }}</span>
+            </td>
+            <td class="mono" data-label="Meter">{{ row.customer.meter_number }}</td>
+            <td class="cell-number" data-label="Balance owed">{{ row.amount_owed|ksh }}</td>
+            <td class="cell-end">{% with status = row.bill.status %}{% include "partials/status_badge.html" %}{% endwith %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if arrears.customer_count > dashboard.needs_attention|length %}
+    <p class="attention-more"><a class="button button-quiet" href="/reports/arrears">See all {{ arrears.customer_count }} customers who owe money</a></p>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+      {{ icon("circle-check", 32) }}
+      <p>Nobody owes money right now.</p>
+      <a class="button button-secondary" href="/bills">{{ icon("receipt") }}Open the bills</a>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
