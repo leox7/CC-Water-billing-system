@@ -1,0 +1,79 @@
+# The water billing app and its database (DEPLOYMENT.md sections 5 to 10).
+# It is its own project, next to the payroll system, and shares only payroll's network
+# with Caddy. No service publishes a port: Docker ports bypass the firewall, and only
+# Caddy faces the internet.
+name: water-billing
+
+services:
+  # NAMES: keep "water-app" and "water-db". Never call a service "db" or "backend".
+  # On the server water-app also joins payroll's network, where payroll's own database is
+  # called "db". A service named "db" here would make that name ambiguous, and the app
+  # could connect to the payroll database by mistake.
+  water-db:
+    image: mysql:8.4
+    # The root password is in .env.db and goes to this container only, never to water-app.
+    env_file: .env.db
+    environment:
+      MYSQL_DATABASE: water_billing
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=128M
+      - --performance-schema=OFF
+      - --max-connections=30
+    volumes:
+      - water_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - internal
+
+  water-app:
+    build: .
+    # The app settings (.env) hold the app database login. They never hold the root password.
+    env_file: .env
+    environment:
+      TZ: Africa/Nairobi
+    depends_on:
+      water-db:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # the app writes no files, so it gets no new rights and a read-only file system
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - internal
+      - payroll_default
+
+networks:
+  internal:
+  # Payroll's network, created by payroll's compose file. Caddy reaches water-app through it.
+  # On your computer, create an empty one once: docker network create payroll_default
+  payroll_default:
+    external: true
+    name: payroll_default
+
+volumes:
+  water_mysql_data:

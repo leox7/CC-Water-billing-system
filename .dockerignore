@@ -1,0 +1,43 @@
+# Keeps secrets, history and tests out of the build context, so they can never reach the image.
+# The Dockerfile copies only app/, alembic/, alembic.ini and scripts/. This is the second safety net.
+
+# secrets
+.env
+.env.*
+
+# history, editor and AI-agent files
+.git
+.gitignore
+.vscode
+.idea
+.claude
+AGENTS.md
+CLAUDE.md
+
+# tests, planning documents and the reference schema
+tests
+docs
+Database
+README.md
+pytest.ini
+requirements-dev.txt
+
+# local environment and caches
+venv
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+htmlcov
+
+# backups, local databases and logs
+backups
+*.sql.gz
+*.sqlite3
+*.db
+*.log
+
+# Docker's own files
+Dockerfile
+docker-compose*.yml

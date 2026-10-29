@@ -1,7 +1,13 @@
 # secrets: never commit
 .env
 .env.*
+# the example files hold placeholders only, so they are committed
 !.env.example
+!.env.*.example
+# the real Docker settings files (DEPLOYMENT.md section 6.1), named here so nobody un-ignores them
+.env.db
+.env.migrate
+.env.backup
 
 # python
 __pycache__/
@@ -22,8 +28,14 @@ Thumbs.db
 
 # planning docs, mockups and AI-agent instructions: kept local only
 *.md
+# the README is committed: it explains how to run the project
+!README.md
 docs/
 .claude/
+
+# local Docker settings and database backups (DEPLOYMENT.md sections 6 and 14)
+docker-compose.override.yml
+backups/
 
 # logs, scratch files and backups
 *.log
@@ -31,4 +43,3 @@ docs/
 *.tmp
 *.sqlite3
 *.db
-
