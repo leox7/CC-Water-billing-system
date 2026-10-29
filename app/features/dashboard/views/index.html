@@ -1,7 +1,8 @@
 {#
   The dashboard (DASH-1, DESIGN_SYSTEM.md section 8): four stat cards and the "Needs attention"
   list of customers who owe money. Each row opens that customer's latest bill. Every figure
-  comes from the same functions as the reports. Needs `user` and `dashboard` (Dashboard).
+  comes from the same functions as the reports. Needs `user`, `dashboard` (Dashboard) and
+  `waiting_count` (DASH-2: messages waiting to be sent, 0 unless the phone method is on).
 #}
 {% extends "base.html" %}
 {% from "macros/icons.html" import icon %}
@@ -58,6 +59,12 @@
 
   <section class="card" aria-labelledby="attention-title">
     <h2 class="card-title" id="attention-title">Needs attention</h2>
+    {# DASH-2: left out when none wait #}
+    {% if waiting_count %}
+    <p class="attention-waiting">
+      <a class="button button-quiet" href="/messages/to-send">{{ icon("send") }}{{ waiting_count }} {{ "message" if waiting_count == 1 else "messages" }} waiting to be sent</a>
+    </p>
+    {% endif %}
     <p class="card-description">Customers who owe money on their latest bill, the largest balance first.</p>
     {% if dashboard.needs_attention %}
     <div class="table-card">

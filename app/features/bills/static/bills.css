@@ -110,9 +110,18 @@
   background: var(--danger-bg);
 }
 
-.sms-status-pending {
+.sms-status-pending,
+.sms-status-cancelled {
   color: var(--text-secondary);
   background: var(--bg-surface-muted);
+}
+
+/* Ready to send (phone method): neutral, never styled as an error (DESIGN_SYSTEM.md section 9) */
+.sms-status-ready {
+  color: var(--text-primary);
+  background: var(--bg-surface-muted);
+  /* sits at the right with its Send by SMS button beside it, not in the middle of the line */
+  margin-left: auto;
 }
 
 .messages-card > * + * {
@@ -138,7 +147,8 @@
     display: none;
   }
 
-  .resend-form .button {
+  .resend-form .button,
+  .message-log-send {
     width: 100%;
   }
 }

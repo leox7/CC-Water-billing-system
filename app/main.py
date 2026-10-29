@@ -26,6 +26,7 @@ from app.features.auth import controller as auth_controller
 from app.features.bills import controller as bills_controller
 from app.features.customers import controller as customers_controller
 from app.features.dashboard import controller as dashboard_controller
+from app.features.messaging import controller as messaging_controller
 from app.features.payments import controller as payments_controller
 from app.features.readings import controller as readings_controller
 from app.features.reports import controller as reports_controller
@@ -125,6 +126,7 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(customers_controller.router)
     app.include_router(readings_controller.router)
     app.include_router(bills_controller.router)
+    app.include_router(messaging_controller.router)
     app.include_router(payments_controller.router)
     app.include_router(reports_controller.router)
     app.include_router(dashboard_controller.router)

@@ -8,6 +8,11 @@ Two rules live here and nowhere else (architecture.md section 4):
 
 A bill is made or changed inside the caller's transaction: the caller commits, so a reading
 and its bill are saved together or not at all (DB-7). Its SMS is sent after that commit.
+
+The SMS text is built here (sms_text), because a correction's balance is a bills rule.
+With the phone method this is also where the Messages to send screen gets each message's
+text and sms: link, and where Mark as sent rebuilds the text before messaging/service.py
+checks and records it (SMS-15 to SMS-19).
 """
 
 import re
@@ -45,12 +50,33 @@ class BillRow:
 
 
 @dataclass
+class MessageToSend:
+    """One card on the Messages to send screen (SMS-15). The text, link and fingerprint are
+    built from the bill as it is now (SMS-19)."""
+
+    message: MessageLog
+    bill: Bill
+    customer: Customer
+    text: str
+    # SMS-16: sms:+254...?&body=...
+    link: str
+    # SMS-17: sent back with Mark as sent, with the total, to tell whether the bill changed
+    fingerprint: str
+
+
+@dataclass
 class BillDetails:
     bill: Bill
     customer: Customer
     reading: MeterReading
     # every SMS attempt for this bill, oldest first
     messages: list[MessageLog]
+    # SMS-17: the first name of whoever marked a message sent, by message id
+    marked_by: dict[int, str]
+    # SMS-16: the sms: link of each ready message, by message id
+    ready_links: dict[int, str]
+    # SMS-1: True with SMS_BACKEND=phone, which changes the Messages card
+    sends_from_phone: bool
     # every payment recorded on this bill, oldest first (PAY-3)
     payments: list[Payment]
     # PAY-3: payments are recorded on the customer's latest bill only
@@ -107,11 +133,22 @@ def bill_details(db: Session, bill_id: int) -> BillDetails:
     """A bill with its customer, its reading, its SMS attempts and its payments, for the bill page."""
     try:
         bill = get_bill(db, bill_id)
-        messages = db.scalars(select(MessageLog).where(MessageLog.bill_id == bill_id).order_by(MessageLog.message_id))
+        customer = db.get(Customer, bill.customer_id)
+        messages = list(db.scalars(select(MessageLog).where(MessageLog.bill_id == bill_id)
+                                   .order_by(MessageLog.message_id)))
         payments = db.scalars(select(Payment).where(Payment.bill_id == bill_id)
                               .order_by(Payment.payment_date, Payment.payment_id))
-        return BillDetails(bill, db.get(Customer, bill.customer_id), db.get(MeterReading, bill.reading_id),
-                           list(messages), list(payments), latest_bill(db, bill.customer_id), amount_unpaid(bill))
+        marked_by = {}
+        ready_links = {}
+        for message in messages:
+            if message.sent_by_user_id is not None:
+                marked_by[message.message_id] = db.get(User, message.sent_by_user_id).first_name
+            if message.status == "ready":
+                text = sms_text(db, bill, message.message_type)
+                ready_links[message.message_id] = sms_templates.sms_link(customer.phone, text)
+        return BillDetails(bill, customer, db.get(MeterReading, bill.reading_id), messages, marked_by, ready_links,
+                           messaging.sends_from_users_phone(), list(payments), latest_bill(db, bill.customer_id),
+                           amount_unpaid(bill))
     except AppError:
         raise
     except Exception as exc:
@@ -133,9 +170,16 @@ def latest_bill(db: Session, customer_id: int) -> Bill | None:
 
 def resend_sms(db: Session, actor: User, bill_id: int) -> MessageLog:
     """SMS-4: Send again on the bill page. Only the latest SMS, only if it failed, and never to
-    an inactive customer; messaging/service.py checks and records each refusal."""
+    an inactive customer; messaging/service.py checks and records each refusal.
+    SMS-18: with the phone method it prepares the latest message's type again as ready,
+    with the text built from the bill now."""
     try:
-        return messaging.resend_message(db, actor, get_bill(db, bill_id))
+        bill = get_bill(db, bill_id)
+        if not messaging.sends_from_users_phone():
+            return messaging.resend_message(db, actor, bill)
+        latest = messaging.latest_message(db, bill_id)
+        message_type = latest.message_type if latest is not None else "bill"
+        return messaging.resend_from_phone(db, actor, bill, message_type, sms_text(db, bill, message_type))
     except AppError:
         raise
     except Exception as exc:
@@ -238,12 +282,14 @@ def recalculate_bill(db: Session, actor: User, bill: Bill, reading: MeterReading
 
 def delete_bill(db: Session, actor: User, bill: Bill) -> None:
     """PRD 4.4, second case: a bill whose SMS was not sent and that has no payment. Its
-    messages_log rows are kept, with the bill link emptied by the database (COR-4). The
-    caller commits."""
+    messages_log rows are kept, with the bill link emptied by the database (COR-4), and a
+    ready one becomes cancelled (SMS-20). The caller commits."""
     try:
         bill_id, customer_id = bill.bill_id, bill.customer_id
         old_figures = {"units": bill.units_consumed, "rate": bill.rate_per_unit, "service_charge": bill.service_charge,
                        "previous_balance": bill.previous_balance, "total_due": bill.total_due}
+        # SMS-20: a ready message of this bill can never be sent now. It is kept as cancelled.
+        messaging.cancel_waiting(db, actor, bill)
         db.delete(bill)
         db.flush()
         audit.record_event(
@@ -266,7 +312,8 @@ def bill_for_reading(db: Session, reading_id: int) -> Bill | None:
 
 
 def sms_was_sent(db: Session, bill_id: int) -> bool:
-    """True once any SMS for this bill went out (a bill or a correction SMS)."""
+    """True once any SMS for this bill went out (a bill or a correction SMS). SMS-20: a ready
+    message does not count, so a bill whose only message waits counts as not sent."""
     try:
         query = select(MessageLog.message_id).where(MessageLog.bill_id == bill_id, MessageLog.status == "sent")
         return db.scalars(query.limit(1)).first() is not None
@@ -275,11 +322,10 @@ def sms_was_sent(db: Session, bill_id: int) -> bool:
 
 
 def send_bill_sms(db: Session, actor: User, bill: Bill) -> MessageLog:
-    """SMS-2: the bill SMS, after the bill is saved. Returns the attempt, sent or failed."""
+    """SMS-2: the bill SMS, after the bill is saved. Returns the attempt, sent or failed, or
+    with the phone method the ready message (SMS-14)."""
     try:
-        customer = db.get(Customer, bill.customer_id)
-        reading = db.get(MeterReading, bill.reading_id)
-        return messaging.send_message(db, actor, bill, "bill", sms_templates.bill_sms(customer, reading, bill))
+        return messaging.send_message(db, actor, bill, "bill", sms_text(db, bill, "bill"))
     except AppError:
         raise
     except Exception as exc:
@@ -289,14 +335,71 @@ def send_bill_sms(db: Session, actor: User, bill: Bill) -> MessageLog:
 def send_correction_sms(db: Session, actor: User, bill: Bill) -> MessageLog:
     """SMS-5, SMS-12: after a corrected reading on a bill whose SMS was already sent."""
     try:
-        customer = db.get(Customer, bill.customer_id)
-        reading = db.get(MeterReading, bill.reading_id)
-        text = sms_templates.correction_sms(customer, reading, bill, amount_unpaid(bill))
-        return messaging.send_message(db, actor, bill, "correction", text)
+        return messaging.send_message(db, actor, bill, "correction", sms_text(db, bill, "correction"))
     except AppError:
         raise
     except Exception as exc:
         raise unexpected_error(exc, "send the correction SMS") from exc
+
+
+def sms_text(db: Session, bill: Bill, message_type: str) -> str:
+    """The bill SMS or the correction SMS for the bill as it is now (SMS-7 to SMS-13)."""
+    try:
+        customer = db.get(Customer, bill.customer_id)
+        reading = db.get(MeterReading, bill.reading_id)
+        if message_type == "correction":
+            return sms_templates.correction_sms(customer, reading, bill, amount_unpaid(bill))
+        return sms_templates.bill_sms(customer, reading, bill)
+    except Exception as exc:
+        raise unexpected_error(exc, "build the SMS text") from exc
+
+
+def messages_to_send(db: Session) -> list[MessageToSend]:
+    """SMS-15: the Messages to send screen, oldest first, each with its text built now."""
+    try:
+        return [_message_to_send(db, message) for message in messaging.waiting_messages(db)]
+    except AppError:
+        raise
+    except Exception as exc:
+        raise unexpected_error(exc, "list the messages to send") from exc
+
+
+def message_to_send(db: Session, message_id: int) -> MessageToSend:
+    """One card of the Messages to send screen, shown again after "This bill changed"."""
+    try:
+        message = db.get(MessageLog, message_id)
+        if message is None or message.bill_id is None:
+            raise NotFoundError("We could not find that message.")
+        return _message_to_send(db, message)
+    except AppError:
+        raise
+    except Exception as exc:
+        raise unexpected_error(exc, "load the message") from exc
+
+
+def mark_sent(db: Session, actor: User, message_id: int, shown_total: str, shown_fingerprint: str) -> MessageLog:
+    """SMS-17: Mark as sent. The text is built here from the bill as it is now, never taken
+    from the browser (SMS-S2); messaging/service.py checks it is the one the user saw."""
+    try:
+        message = db.get(MessageLog, message_id)
+        if message is None:
+            raise NotFoundError("We could not find that message.")
+        text = message.content
+        if message.bill_id is not None:
+            text = sms_text(db, get_bill(db, message.bill_id), message.message_type)
+        return messaging.mark_sent(db, actor, message_id, text, shown_total, shown_fingerprint)
+    except AppError:
+        raise
+    except Exception as exc:
+        raise unexpected_error(exc, "mark the SMS as sent") from exc
+
+
+def _message_to_send(db: Session, message: MessageLog) -> MessageToSend:
+    bill = db.get(Bill, message.bill_id)
+    customer = db.get(Customer, message.customer_id)
+    text = sms_text(db, bill, message.message_type)
+    return MessageToSend(message, bill, customer, text, sms_templates.sms_link(customer.phone, text),
+                         sms_templates.text_fingerprint(text))
 
 
 def _latest_earlier_bill(db: Session, customer_id: int, before_period: str) -> Bill | None:

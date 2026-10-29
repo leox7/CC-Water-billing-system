@@ -14,7 +14,7 @@ from fastapi.routing import APIRoute
 from sqlalchemy import select
 
 from app.features.audit.service import EVENT_LEVELS
-from app.models import AuditLog, Bill, Customer, MeterReading, User
+from app.models import AuditLog, Bill, Customer, MessageLog, MeterReading, User
 from tests.conftest import TEST_CSRF_TOKEN
 
 PUBLIC = {
@@ -51,6 +51,9 @@ SIGNED_IN = {
     ("POST", "/bills/{bill_id}/resend"),
     ("GET", "/bills/{bill_id}/payments/preview"),
     ("POST", "/bills/{bill_id}/payments"),
+    # the phone method (SMS-15, SMS-S4): owner and member both send messages
+    ("GET", "/messages/to-send"),
+    ("POST", "/messages/{message_id}/mark-sent"),
     ("GET", "/"),
     ("GET", "/reports"),
     ("GET", "/reports/arrears"),
@@ -88,6 +91,7 @@ def call(client, method, path, targets):
     url = url.replace("{customer_id}", str(targets.customer.customer_id))
     url = url.replace("{reading_id}", str(targets.reading.reading_id))
     url = url.replace("{bill_id}", str(targets.bill.bill_id))
+    url = url.replace("{message_id}", str(targets.message.message_id))
     if path == "/readings/preview":
         url += f"?customer_id={targets.customer.customer_id}&current_reading=12"
     if path == "/bills/{bill_id}/payments/preview":
@@ -105,13 +109,15 @@ def call(client, method, path, targets):
 
 class Targets:
     """The records a route acts on: a member for the account routes, a customer for the
-    customer routes, and a reading with its bill (not sent) for the reading and bill routes."""
+    customer routes, a reading with its bill (not sent) for the reading and bill routes, and
+    the bill's message waiting to be sent for the message routes."""
 
-    def __init__(self, member, customer, reading, bill):
+    def __init__(self, member, customer, reading, bill, message):
         self.member = member
         self.customer = customer
         self.reading = reading
         self.bill = bill
+        self.message = message
 
 
 @pytest.fixture
@@ -131,7 +137,11 @@ def targets(make_user, db_session, sms):
                 total_due=Decimal("1450"))
     db_session.add(bill)
     db_session.flush()
-    return Targets(member, customer, reading, bill)
+    message = MessageLog(bill_id=bill.bill_id, customer_id=customer.customer_id, message_type="bill",
+                         content="Hi Mary,", status="ready")
+    db_session.add(message)
+    db_session.flush()
+    return Targets(member, customer, reading, bill, message)
 
 
 def test_every_route_is_listed(web):
@@ -225,5 +235,5 @@ def test_every_event_built_so_far_is_tested():
 
     untested = [event for event in events if f'"{event}"' not in all_test_code]
 
-    assert len(events) == 36
+    assert len(events) == 39
     assert untested == []

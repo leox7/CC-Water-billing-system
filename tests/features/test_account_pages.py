@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import select
 
 from app.core.security import verify_password
-from app.models import AuditLog, Bill, Customer, MeterReading, Payment, User
+from app.models import AuditLog, Bill, Customer, MessageLog, MeterReading, Payment, User
 from tests.conftest import TEST_CSRF_TOKEN, TEST_PASSWORD
 
 HTMX = {"HX-Request": "true", "X-CSRF-Token": TEST_CSRF_TOKEN}
@@ -58,11 +58,21 @@ def add_payment_by(db_session, member, owner):
     db_session.flush()
 
 
+def add_marked_message_by(db_session, member, owner):
+    """An SMS the member marked as sent with the phone method (SMS-17)."""
+    reading = add_reading_by(db_session, owner)
+    db_session.add(MessageLog(customer_id=reading.customer_id, message_type="bill", content="text",
+                              status="sent", sent_by_user_id=member.user_id))
+    db_session.flush()
+
+
 def add_record_by(db_session, member, owner, recorded):
     if recorded == "reading":
         add_reading_by(db_session, member)
-    else:
+    elif recorded == "payment":
         add_payment_by(db_session, member, owner)
+    else:
+        add_marked_message_by(db_session, member, owner)
 
 
 def row_html(html, user_id):
@@ -120,7 +130,7 @@ def test_a_member_row_has_deactivate_set_password_and_delete(as_owner, member):
     assert '<dialog class="modal" id="deactivate-dialog-' in member_row
 
 
-@pytest.mark.parametrize("recorded", ["reading", "payment"])
+@pytest.mark.parametrize("recorded", ["reading", "payment", "marked message"])
 def test_delete_is_not_offered_for_a_member_who_recorded_a_reading_or_payment(as_owner, owner, member, db_session,
                                                                              recorded):
     add_record_by(db_session, member, owner, recorded)
@@ -246,7 +256,7 @@ def test_deleting_a_member_who_recorded_nothing_removes_the_row(as_owner, member
     assert db_session.get(User, member_id) is None
 
 
-@pytest.mark.parametrize("recorded", ["reading", "payment"])
+@pytest.mark.parametrize("recorded", ["reading", "payment", "marked message"])
 def test_deleting_a_member_who_recorded_something_is_refused_with_a_plain_message(as_owner, owner, member, db_session,
                                                                                  recorded):
     add_record_by(db_session, member, owner, recorded)
@@ -254,7 +264,7 @@ def test_deleting_a_member_who_recorded_something_is_refused_with_a_plain_messag
     response = as_owner.post(f"/account/members/{member.user_id}/delete", headers=HTMX)
 
     assert response.status_code == 422
-    assert ("Peter Test has recorded readings or payments, so the account cannot be deleted. "
+    assert ("Peter Test has recorded readings or payments, or marked an SMS as sent, so the account cannot be deleted. "
             "Deactivate it instead.") in response.text
     assert 'role="alert"' in response.text
     assert db_session.get(User, member.user_id) is not None

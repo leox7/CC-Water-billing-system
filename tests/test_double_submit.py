@@ -24,7 +24,7 @@ def form_tags():
 
 def test_there_are_forms_to_check():
     assert sum(1 for _ in form_tags()) >= 20
-    assert sum(1 for _, tag in form_tags() if "hx-post=" in tag) == 14
+    assert sum(1 for _, tag in form_tags() if "hx-post=" in tag) == 15
 
 
 def test_every_htmx_form_that_changes_data_has_both_guards():

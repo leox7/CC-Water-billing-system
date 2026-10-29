@@ -1,18 +1,31 @@
 {#
   The Messages card: every SMS attempt for the bill, oldest first, with its status in a word and
-  an icon, and a failed one with its plain reason (SMS-3). "Send again" shows only when the
-  latest attempt failed (SMS-4), and not for an inactive customer (CUS-4). htmx replaces this whole card after Send again.
-  Needs `details` (BillDetails) and, after Send again, `resend_status` (sent or failed).
+  an icon, and a failed one with its plain reason (SMS-3). htmx replaces this whole card after Send again.
+  - Africa's Talking: "Send again" shows only when the latest attempt failed (SMS-4), and not for
+    an inactive customer (CUS-4).
+  - The phone method: a ready message shows "Ready to send" with Send by SMS beside it (SMS-16), a
+    marked one says who marked it and that delivery is not confirmed (SMS-17), and "Send again"
+    shows on a sent or failed message, or when there is none yet (SMS-18).
+  Needs `details` (BillDetails) and, after Send again, `resend_status` (sent, failed or ready).
 #}
 {% from "macros/icons.html" import icon %}
 {% set customer = details.customer %}
 {% set full_name = customer.first_name ~ " " ~ customer.last_name %}
 {% set latest = details.messages[-1] if details.messages else none %}
-{% set message_words = {"sent": "Sent", "failed": "Failed", "pending": "Sending"} %}
-{% set message_icons = {"sent": "circle-check", "failed": "alert-circle", "pending": "info-circle"} %}
+{% set message_words = {"sent": "Sent", "failed": "Failed", "pending": "Sending", "ready": "Ready to send", "cancelled": "Cancelled"} %}
+{% set message_icons = {"sent": "circle-check", "failed": "alert-circle", "pending": "info-circle", "ready": "send", "cancelled": "info-circle"} %}
+{% if details.sends_from_phone %}
+  {% set can_send_again = latest is none or latest.status in ("sent", "failed") %}
+{% else %}
+  {% set can_send_again = latest is not none and latest.status == "failed" %}
+{% endif %}
 <section class="card messages-card" id="messages-card" aria-labelledby="messages-title">
   <h2 class="card-title" id="messages-title">Messages</h2>
+  {% if details.sends_from_phone %}
+  <p class="card-description">Every SMS for this bill. Each one is sent from a phone, so the app cannot see whether it arrived.</p>
+  {% else %}
   <p class="card-description">Every SMS for this bill. "Sent" means Africa's Talking took it to deliver.</p>
+  {% endif %}
 
   {# tabindex and autofocus: after Send again, focus lands on what happened, which is read out #}
   {% if resend_status == "sent" %}
@@ -24,6 +37,11 @@
   <div class="message message-warning" role="status" tabindex="-1" autofocus>
     {{ icon("alert-circle", 20) }}
     <div class="message-text">The SMS to {{ full_name }} did not send again. Please try again later.</div>
+  </div>
+  {% elif resend_status == "ready" %}
+  <div class="message message-success" role="status" tabindex="-1" autofocus>
+    {{ icon("circle-check", 20) }}
+    <div class="message-text">The SMS to {{ full_name }} is ready to send.</div>
   </div>
   {% endif %}
 
@@ -40,6 +58,13 @@
       {% if message.status == "failed" and message.failure_reason %}
       <p class="text-help message-log-reason">{{ message.failure_reason }}</p>
       {% endif %}
+      {# SMS-17: the phone method cannot see delivery, and says so #}
+      {% if message.status == "sent" and message.message_id in details.marked_by %}
+      <p class="text-help message-log-reason">Marked as sent by {{ details.marked_by[message.message_id] }}, {{ message.updated_at|date_time_label }}. Delivery is not confirmed.</p>
+      {% endif %}
+      {% if message.status == "ready" %}
+      <a class="button button-primary message-log-send" href="{{ details.ready_links[message.message_id] }}">{{ icon("send") }}Send by SMS</a>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>
@@ -47,9 +72,13 @@
   <p class="text-help">No SMS has been sent for this bill.</p>
   {% endif %}
 
-  {% if latest and latest.status == "failed" %}
+  {% if details.ready_links %}
+  <p><a href="/messages/to-send">Open Messages to send to mark it as sent</a></p>
+  {% endif %}
+
+  {% if can_send_again %}
     {% if customer.status == "active" %}
-    {% if not resend_status %}
+    {% if latest and latest.status == "failed" and not resend_status %}
     <div class="message message-warning">
       {{ icon("alert-circle", 20) }}
       <div class="message-text">The SMS did not send. Send it again.</div>
@@ -62,7 +91,7 @@
       <button class="button button-quiet" type="submit">
         <span class="button-label">
           <span>{{ icon("send") }}Send again</span>
-          <span class="button-working">Sending...</span>
+          <span class="button-working">{{ "Preparing..." if details.sends_from_phone else "Sending..." }}</span>
         </span>
       </button>
     </form>

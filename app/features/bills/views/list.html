@@ -2,7 +2,7 @@
   The Bills screen (PRD section 4.5, DESIGN_SYSTEM.md section 8): every bill, filtered by month
   and status. A table on desktop, stacked cards on a phone. Each row opens its bill.
   Needs `user`, `rows` (BillRow), `periods`, `month` ("" for all), `status` ("" for all),
-  `statuses` and `list_limit`. After a refused filter, `error`.
+  `statuses`, `list_limit`, `sends_from_phone` and `waiting_count`. After a refused filter, `error`.
 #}
 {% extends "base.html" %}
 {% from "macros/icons.html" import icon %}
@@ -17,6 +17,10 @@
     <p class="text-label">{{ month|period_label if month and not error else "All months" }}</p>
     <h1>Bills</h1>
   </div>
+  {# SMS-15: with the phone method, and after a switch while some still wait (SMS-22) #}
+  {% if sends_from_phone or waiting_count %}
+  <a class="button button-primary" href="/messages/to-send">{{ icon("send") }}Messages to send ({{ waiting_count }})</a>
+  {% endif %}
 </div>
 
 {# A plain search form: choosing and pressing Show bills loads the page with the filters in the address #}

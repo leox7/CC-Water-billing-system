@@ -1,10 +1,13 @@
 """Migration 0002: field agents become members, and the downgrade turns them back.
 Migration 0003: messages_log gets failure_reason, and the downgrade takes it away.
+Migration 0004: the phone method's statuses and sent_by_user_id, and a downgrade that
+refuses while a ready or cancelled message exists.
 
 Runs the real migrations on the test database (DB-5), and always leaves it at head with
 no rows behind.
 """
 
+import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import text
@@ -85,3 +88,79 @@ def test_0003_adds_failure_reason_to_messages_log_and_takes_it_away(test_engine)
 
     with test_engine.connect() as connection:
         assert tuple(failure_reason_column(connection)) == ("varchar(255)", "YES")
+
+
+def status_column(connection) -> str:
+    return connection.execute(text(
+        "SELECT column_type FROM information_schema.columns "
+        "WHERE table_schema = DATABASE() AND table_name = 'messages_log' AND column_name = 'status'"
+    )).scalar()
+
+
+def sent_by_column(connection):
+    return connection.execute(text(
+        "SELECT is_nullable FROM information_schema.columns "
+        "WHERE table_schema = DATABASE() AND table_name = 'messages_log' AND column_name = 'sent_by_user_id'"
+    )).scalar()
+
+
+def message_statuses(connection) -> list[str]:
+    return list(connection.execute(text("SELECT status FROM messages_log ORDER BY message_id")).scalars())
+
+
+def test_0004_adds_the_phone_statuses_and_keeps_old_rows_both_ways(test_engine):
+    config = alembic_config()
+    command.downgrade(config, "0003")
+    try:
+        with test_engine.begin() as connection:
+            assert status_column(connection) == "enum('pending','sent','failed')"
+            customer_id = connection.execute(text(
+                "INSERT INTO customers (first_name, last_name, phone, location, meter_number) "
+                "VALUES ('Mary', 'Wanjiru', '254722123456', 'Kiawara', 'MTR-M004')")).lastrowid
+            for status in ("pending", "sent", "failed"):
+                connection.execute(text(
+                    "INSERT INTO messages_log (customer_id, message_type, content, status) "
+                    "VALUES (:customer, 'bill', 'text', :status)"), {"customer": customer_id, "status": status})
+
+        command.upgrade(config, "0004")
+        with test_engine.connect() as connection:
+            assert status_column(connection) == "enum('pending','sent','failed','ready','cancelled')"
+            assert sent_by_column(connection) == "YES"
+            assert message_statuses(connection) == ["pending", "sent", "failed"]
+
+        command.downgrade(config, "0003")
+        with test_engine.connect() as connection:
+            assert status_column(connection) == "enum('pending','sent','failed')"
+            assert sent_by_column(connection) is None
+            assert message_statuses(connection) == ["pending", "sent", "failed"]
+    finally:
+        command.upgrade(config, "head")
+        with test_engine.begin() as connection:
+            connection.execute(text("DELETE FROM messages_log"))
+            connection.execute(text("DELETE FROM customers WHERE meter_number = 'MTR-M004'"))
+
+
+@pytest.mark.parametrize("status", ["ready", "cancelled"])
+def test_0004_downgrade_refuses_while_a_ready_or_cancelled_message_exists(test_engine, status):
+    config = alembic_config()
+    try:
+        with test_engine.begin() as connection:
+            customer_id = connection.execute(text(
+                "INSERT INTO customers (first_name, last_name, phone, location, meter_number) "
+                "VALUES ('Mary', 'Wanjiru', '254722123456', 'Kiawara', 'MTR-M004')")).lastrowid
+            connection.execute(text(
+                "INSERT INTO messages_log (customer_id, message_type, content, status) "
+                "VALUES (:customer, 'bill', 'text', :status)"), {"customer": customer_id, "status": status})
+
+        with pytest.raises(RuntimeError, match="ready or cancelled"):
+            command.downgrade(config, "0003")
+
+        # nothing was changed or deleted to make it fit
+        with test_engine.connect() as connection:
+            assert message_statuses(connection) == [status]
+            assert status_column(connection) == "enum('pending','sent','failed','ready','cancelled')"
+    finally:
+        command.upgrade(config, "head")
+        with test_engine.begin() as connection:
+            connection.execute(text("DELETE FROM messages_log"))
+            connection.execute(text("DELETE FROM customers WHERE meter_number = 'MTR-M004'"))

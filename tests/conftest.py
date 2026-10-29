@@ -88,6 +88,38 @@ def sms(monkeypatch: pytest.MonkeyPatch) -> FakeSmsProvider:
     return fake
 
 
+@pytest.fixture
+def sms_backend(monkeypatch: pytest.MonkeyPatch):
+    """Switches SMS_BACKEND for one test, as a restart with a new .env would: sms_backend("phone").
+    Only messaging/service.py reads the backend, so that is the one place to change it."""
+    import dataclasses
+
+    from app.core.config import get_settings
+
+    def switch(backend: str) -> None:
+        settings = dataclasses.replace(get_settings(), sms_backend=backend)
+        monkeypatch.setattr("app.features.messaging.service.get_settings", lambda: settings)
+
+    return switch
+
+
+@pytest.fixture
+def phone_method(sms_backend, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """SMS_BACKEND=phone for one test. Returns the list of every call that reached Africa's
+    Talking, which must stay empty: the phone method never calls a provider (SMS-14)."""
+    from app.features.messaging import providers
+
+    sms_backend("phone")
+    provider_calls: list[str] = []
+
+    def africastalking_was_called(*args: Any, **kwargs: Any) -> None:
+        provider_calls.append("africastalking")
+        raise AssertionError("The phone method must never call Africa's Talking")
+
+    monkeypatch.setattr(providers, "send_with_africastalking", africastalking_was_called)
+    return provider_calls
+
+
 @pytest.fixture(autouse=True)
 def audit_writes_are_rolled_back(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch

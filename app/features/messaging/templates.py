@@ -1,5 +1,6 @@
 """The text of the bill SMS and the correction SMS (PRD section 4.6). The wording and the
-line order are decided, so keep them exactly as written.
+line order are decided, so keep them exactly as written. Also the sms: link and the
+fingerprint the phone method uses (SMS-16, SMS-17).
 
 Every figure comes from the saved reading and bill, never from the customer's current
 rate, so an old bill always reads the way it was sent (SMS-10). Money uses the same
@@ -7,7 +8,9 @@ format as the screens, so the SMS and the bill page always agree. These are smal
 helpers with no database or network access.
 """
 
+import hashlib
 from decimal import Decimal
+from urllib.parse import quote
 
 from app.core.templating import ksh, money_figure, plain_number
 from app.models import Bill, Customer, MeterReading
@@ -52,3 +55,19 @@ def _bill_lines(reading: MeterReading, bill: Bill) -> list[str]:
     # SMS-9: the full total
     lines.append(f"Amount Due: {ksh(bill.total_due)}")
     return lines
+
+
+def sms_link(phone: str, text: str) -> str:
+    """SMS-16: sms:+254722123456?&body=... opens the phone's messaging app with the number and
+    the whole text filled in. `phone` is the number stored on the customer and `text` the
+    message the server built from the saved bill, never anything from the browser (SMS-S2).
+    Every character but letters, digits and -._~ is percent-encoded, so a line break
+    becomes %0A and &, #, %, + and quotes cannot end the body early. "?&body=" rather than
+    "?body=" is the form both Android and iPhone messaging apps read."""
+    return f"sms:+{phone}?&body={quote(text, safe='')}"
+
+
+def text_fingerprint(text: str) -> str:
+    """SMS-17: a SHA-256 of the message text. The Messages to send form carries it, so Mark
+    as sent can tell whether the text the server builds now is the one the user saw."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()

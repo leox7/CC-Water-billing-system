@@ -22,6 +22,7 @@ from app.core.database import get_db
 from app.core.deps import require_login
 from app.core.errors import AppError, render_error, unexpected_error
 from app.core.templating import is_htmx_request, plain_number, templates
+from app.features.messaging import service as messaging
 from app.features.readings import service as readings
 from app.models import User
 
@@ -128,6 +129,8 @@ def save_reading(
         context["entry"] = readings.entry_details(db, customer_id)
         context["result"] = readings.create_reading(db, user, customer_id, typed)
         context["next_customer"] = readings.next_customer_to_read(db)
+        # SMS-14: the number on the "Messages to send" link
+        context["waiting_count"] = messaging.waiting_count(db)
         return templates.TemplateResponse(request, template, context)
     except AppError as exc:
         if "entry" not in context:
@@ -176,6 +179,7 @@ def save_fix(
         # kept as plain values: in the first two cases the old reading is gone after the save
         context.update({"fix": fix, "customer": fix.customer, "period": fix.reading.billing_period})
         context["result"] = readings.correct_reading(db, user, reading_id, context["form"])
+        context["waiting_count"] = messaging.waiting_count(db)
         return templates.TemplateResponse(request, template, context)
     except AppError as exc:
         if "fix" not in context:

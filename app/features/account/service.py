@@ -24,14 +24,14 @@ from app.core.errors import (
 from app.core.security import check_password_rules, hash_password, verify_password
 from app.core.validation import clean_name, parse_phone_or_email
 from app.features.audit import service as audit
-from app.models import MeterReading, Payment, User
+from app.models import MessageLog, MeterReading, Payment, User
 
 
 @dataclass
 class TeamMember:
     user: User
-    # AUTH-4: how many readings and payments this person recorded. A member who recorded
-    # anything can be deactivated but never deleted.
+    # AUTH-4: how many readings and payments this person recorded and SMS they marked as
+    # sent. A member who recorded anything can be deactivated but never deleted.
     record_count: int
 
 
@@ -44,11 +44,15 @@ def list_team(db: Session) -> list[TeamMember]:
         payments_per_user = dict(
             db.execute(select(Payment.recorded_by, func.count()).group_by(Payment.recorded_by)).all()
         )
+        marked_per_user = dict(
+            db.execute(select(MessageLog.sent_by_user_id, func.count()).group_by(MessageLog.sent_by_user_id)).all()
+        )
         # MySQL sorts an ENUM by its place in the list, and "owner" comes first
         users = db.scalars(select(User).order_by(User.role, User.first_name, User.last_name)).all()
         team = []
         for user in users:
-            record_count = readings_per_user.get(user.user_id, 0) + payments_per_user.get(user.user_id, 0)
+            record_count = (readings_per_user.get(user.user_id, 0) + payments_per_user.get(user.user_id, 0)
+                            + marked_per_user.get(user.user_id, 0))
             team.append(TeamMember(user, record_count))
         return team
     except Exception as exc:
@@ -140,7 +144,8 @@ def reactivate_member(db: Session, actor: User, member_id: int) -> User:
 
 
 def delete_member(db: Session, actor: User, member_id: int) -> str:
-    """AUTH-4: only a member who has recorded no reading and no payment may be deleted.
+    """AUTH-4: only a member who has recorded no reading and no payment, and marked no SMS as
+    sent, may be deleted.
     Returns their name."""
     try:
         _require_owner(actor, "delete a member")
@@ -148,7 +153,8 @@ def delete_member(db: Session, actor: User, member_id: int) -> str:
         name = f"{member.first_name} {member.last_name}"
         if _record_count(db, member.user_id):
             raise BusinessRuleError(
-                f"{name} has recorded readings or payments, so the account cannot be deleted. Deactivate it instead."
+                f"{name} has recorded readings or payments, or marked an SMS as sent, so the account cannot be deleted. "
+                "Deactivate it instead."
             )
         db.delete(member)
         db.flush()
@@ -262,10 +268,12 @@ def _get_member(db: Session, member_id: int) -> User:
 
 
 def _record_count(db: Session, user_id: int) -> int:
-    # AUTH-4: readings and payments both count, since members can record either
+    # AUTH-4: readings and payments both count, since members can record either, and so does
+    # an SMS they marked as sent (SMS-17), which keeps who marked it
     readings = db.scalar(select(func.count()).select_from(MeterReading).where(MeterReading.recorded_by == user_id))
     payments = db.scalar(select(func.count()).select_from(Payment).where(Payment.recorded_by == user_id))
-    return (readings or 0) + (payments or 0)
+    marked = db.scalar(select(func.count()).select_from(MessageLog).where(MessageLog.sent_by_user_id == user_id))
+    return (readings or 0) + (payments or 0) + (marked or 0)
 
 
 def _check_not_taken(db: Session, phone: str | None, email: str | None) -> None:

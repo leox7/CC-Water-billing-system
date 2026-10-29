@@ -1,0 +1,61 @@
+{#
+  Messages to send (PRD SMS-15, DESIGN_SYSTEM.md section 8): every ready message of an active
+  customer, oldest first, one card each. Reached from the Bills page, the readings result and
+  the bill's Messages card; not a menu item. Needs `user`, `cards` (MessageToSend),
+  `sends_from_phone` and, after a Mark as sent without htmx, `marked`.
+#}
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Messages to send{% endblock %}
+{% block head_css %}<link rel="stylesheet" href="/static/messaging/messaging.css">{% endblock %}
+
+{% block topbar_start %}
+<a class="topbar-link" href="/bills">{{ icon("arrow-left", 24) }}<span>Bills</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-text">
+    <p class="text-label">{{ cards|length }} waiting</p>
+    <h1>Messages to send</h1>
+  </div>
+  <a class="button button-secondary page-back" href="/bills">{{ icon("arrow-left") }}Back to bills</a>
+</div>
+
+<p class="to-send-steps">Tap Send by SMS, press send in your messaging app, then come back and tap Mark as sent.</p>
+
+{% if marked %}
+<div class="messages" role="status">
+  <div class="message message-success" data-auto-dismiss>
+    {{ icon("circle-check", 20) }}
+    <div class="message-text">Marked as sent.</div>
+    <button class="message-close" type="button" data-dismiss-message>Close<span class="visually-hidden"> message</span></button>
+  </div>
+</div>
+{% endif %}
+
+{% if not sends_from_phone and cards %}
+{# SMS-22: these were queued before the switch to automatic SMS; they can still go from a phone #}
+<div class="message message-info">
+  {{ icon("info-circle", 20) }}
+  <div class="message-text">SMS are now sent automatically. These messages were waiting from before; send them from a phone, then mark them as sent.</div>
+</div>
+{% endif %}
+
+{% if cards %}
+{# shown only where there is a mouse, which usually means a computer (messaging.css) #}
+<p class="to-send-computer-note text-help">Send by SMS opens your messaging app, so it works from a phone. On a computer, use Copy message.</p>
+<ul class="to-send-list">
+  {% for card in cards %}
+  <li>{% include "messaging/views/_card.html" %}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<section class="card empty-state">
+  {{ icon("circle-check", 32) }}
+  <p>Nothing to send. New bills will appear here.</p>
+  <a class="button button-secondary" href="/bills">{{ icon("receipt") }}Open the bills</a>
+</section>
+{% endif %}
+{% endblock %}

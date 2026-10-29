@@ -1,0 +1,9 @@
+{#
+  What replaces a card after Mark as sent (SMS-17): a success message in the same place, read
+  out by screen readers, which closes itself after a few seconds. Needs `customer`.
+#}
+{% from "macros/icons.html" import icon %}
+<div class="message message-success" role="status" data-auto-dismiss>
+  {{ icon("circle-check", 20) }}
+  <div class="message-text">Marked as sent: {{ customer.first_name }} {{ customer.last_name }}.</div>
+</div>

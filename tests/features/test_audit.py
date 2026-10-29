@@ -37,8 +37,12 @@ def audit_rows(db_session, event_type):
 
 def test_every_catalogue_event_has_a_valid_level():
     assert set(audit.EVENT_LEVELS.values()) <= {"info", "warning", "error"}
-    assert len(audit.EVENT_LEVELS) == 36
+    assert len(audit.EVENT_LEVELS) == 39
     assert audit.EVENT_LEVELS["sms.resend_refused"] == "warning"
+    # the phone method (AUDIT_LOG.md section 4)
+    assert audit.EVENT_LEVELS["sms.queued"] == "info"
+    assert audit.EVENT_LEVELS["sms.marked_sent"] == "info"
+    assert audit.EVENT_LEVELS["sms.cancelled"] == "info"
 
 
 def test_a_success_row_has_the_right_fields(db_session, owner, customer):

@@ -113,6 +113,33 @@ def test_unknown_sms_backend_is_refused():
         load_settings(development_environ(SMS_BACKEND="whatsapp"))
 
 
+@pytest.mark.parametrize("app_env", ["development", "production"])
+@pytest.mark.parametrize("backend", ["console", "phone"])
+def test_console_and_phone_start_with_no_africastalking_settings(app_env, backend):
+    # SMS-1, SMS-6: neither calls a provider, so neither needs AT_USERNAME, AT_API_KEY or AT_SENDER_ID
+    environ = production_environ if app_env == "production" else development_environ
+
+    settings = load_settings(environ(SMS_BACKEND=backend))
+
+    assert settings.sms_backend == backend
+    assert (settings.at_username, settings.at_api_key, settings.at_sender_id) == ("", "", "")
+
+
+def test_the_phone_backend_ignores_a_sandbox_username():
+    assert load_settings(development_environ(SMS_BACKEND="phone", AT_USERNAME="sandbox")).sms_backend == "phone"
+
+
+@pytest.mark.parametrize("backend", ["console", "phone", "africastalking"])
+def test_each_of_the_three_backends_starts(backend):
+    environ = production_environ(**live_sms(SMS_BACKEND=backend))
+
+    assert load_settings(environ).sms_backend == backend
+
+
+def test_phone_is_read_whatever_its_case():
+    assert load_settings(development_environ(SMS_BACKEND=" Phone ")).sms_backend == "phone"
+
+
 def live_sms(**overrides: str) -> dict[str, str]:
     environ = {"SMS_BACKEND": "africastalking", "AT_USERNAME": "ccwater", "AT_API_KEY": "k", "AT_SENDER_ID": "CCH2O"}
     environ.update(overrides)
@@ -214,13 +241,13 @@ def test_secrets_are_not_in_the_settings_repr():
     assert "pw@" not in text
 
 
-@pytest.mark.parametrize("typo", ["whatsapp", "consol", "console2", "africa", "sms"])
+@pytest.mark.parametrize("typo", ["whatsapp", "consol", "console2", "africa", "sms", "phones", "mobile"])
 def test_an_unknown_sms_backend_stops_the_app_with_a_clear_message(typo):
     # SMS-6: a typo must never fall back to sending real SMS, or to silence
     with pytest.raises(ConfigError) as raised:
         load_settings(development_environ(SMS_BACKEND=typo))
 
-    assert str(raised.value) == "SMS_BACKEND must be one of: console, africastalking."
+    assert str(raised.value) == "SMS_BACKEND must be one of: console, phone, africastalking."
 
 
 def test_an_unknown_sms_backend_stops_the_app_from_starting_at_all():
@@ -235,4 +262,4 @@ def test_an_unknown_sms_backend_stops_the_app_from_starting_at_all():
                              cwd=PROJECT_ROOT)
 
     assert started.returncode != 0
-    assert "SMS_BACKEND must be one of: console, africastalking." in started.stderr
+    assert "SMS_BACKEND must be one of: console, phone, africastalking." in started.stderr

@@ -2,6 +2,9 @@
 
 - console: writes the SMS to the application log instead of sending it. Development and
   tests always use it; config.py refuses africastalking outside production (SEC-7).
+- phone: nothing leaves the server. messaging/service.py writes the message as "ready" and a
+  user sends it from their own phone (PRD SMS-14 to SMS-22), so send_sms() is never called
+  with it. It needs no account and no network, so it is allowed everywhere (SMS-6).
 - africastalking: one plain httpx request to Africa's Talking's bulk SMS endpoint (no SDK,
   AGENTS.md section 3), one customer per request. That endpoint has no sandbox, so config.py
   allows it in production only (SEC-7).
@@ -42,11 +45,19 @@ class SmsSendError(Exception):
     """The SMS did not go. The text says why, for messages_log and the audit log."""
 
 
+def sends_from_users_phone(settings: Settings) -> bool:
+    """SMS-1: True with the phone method, where the app only prepares the message."""
+    return settings.sms_backend == "phone"
+
+
 def send_sms(settings: Settings, phone: str, text: str) -> str | None:
     """Send one SMS to a stored phone number (254722123456). Returns the provider's message
     id, which the console backend does not have."""
     if settings.sms_backend == "africastalking":
         return send_with_africastalking(settings, phone, text)
+    if sends_from_users_phone(settings):
+        # a bug in the caller: with the phone method a message is queued, never sent from here
+        raise ValueError("send_sms() was called with SMS_BACKEND=phone, which sends nothing itself.")
     write_to_console(phone, text)
     return None
 

@@ -20,7 +20,9 @@ EXAMPLE_SESSION_SECRET = "change-me-to-a-random-value-of-at-least-32-bytes"
 DEVELOPMENT_SESSION_SECRET = "development-only-secret-not-for-production-use"
 
 APP_ENVIRONMENTS = ("development", "test", "production")
-SMS_BACKENDS = ("console", "africastalking")
+# SMS-1: console (development and tests), phone (the user sends each SMS from their own
+# phone) or africastalking (sent automatically)
+SMS_BACKENDS = ("console", "phone", "africastalking")
 MINIMUM_SECRET_BYTES = 32
 # Africa's Talking's test account. The bulk SMS endpoint the app uses has no sandbox, so this
 # username is refused rather than sending to an address that does not exist.
@@ -126,7 +128,8 @@ def _read_sender_id(environ: Mapping[str, str]) -> str:
 
 
 def _check_sms_settings(sms_backend: str, app_env: str, username: str, api_key: str, sender_id: str) -> None:
-    if sms_backend == "console":
+    # console and phone never call a provider (SMS-6), so they need no Africa's Talking settings
+    if sms_backend != "africastalking":
         return
     if username == SANDBOX_USERNAME:
         raise ConfigError("Africa's Talking's bulk SMS endpoint has no sandbox, so AT_USERNAME=sandbox cannot be "

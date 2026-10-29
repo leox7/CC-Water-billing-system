@@ -4,10 +4,12 @@ Owner and member do this work alike (PRD section 3), so every route needs only a
 user (require_login).
 
 - /bills: the list, filtered by month and status. With no month chosen it shows the newest
-  month that has bills.
+  month that has bills. With the phone method, or while messages wait, its header has the
+  "Messages to send (N)" button (SMS-15).
 - /bills/{bill_id}: the breakdown in the order the customer sees it, and the SMS attempts.
 - /bills/{bill_id}/resend: Send again, sent by htmx. The answer is the Messages card again.
-  Without htmx it is a normal post that comes back to the bill page.
+  Without htmx it is a normal post that comes back to the bill page. With the phone method
+  it prepares the message again as ready (SMS-18).
 The Payments card on the bill page, and its routes, belong to payments/controller.py.
 """
 
@@ -22,6 +24,7 @@ from app.core.deps import require_login
 from app.core.errors import AppError, render_error, unexpected_error
 from app.core.templating import is_htmx_request, templates
 from app.features.bills import service as bills
+from app.features.messaging import service as messaging
 from app.features.payments import service as payments
 from app.models import User
 
@@ -31,7 +34,7 @@ LIST_PAGE = "bills/views/list.html"
 DETAIL_PAGE = "bills/views/detail.html"
 MESSAGE_LOG = "bills/views/_message_log.html"
 # How a Send again that was a normal form post ended, from the address of the bill page
-RESEND_NOTICES = ("sent", "failed")
+RESEND_NOTICES = ("sent", "failed", "ready")
 # ...and how a payment form that was a normal post ended
 PAYMENT_SAVED_NOTICE = "payment_saved"
 
@@ -45,8 +48,10 @@ def bill_list(
     db: Session = Depends(get_db),
 ) -> Response:
     context: dict[str, Any] = {"user": user, "rows": [], "periods": [], "month": month or "", "status": status,
-                               "statuses": bills.BILL_STATUSES, "list_limit": bills.LIST_LIMIT}
+                               "statuses": bills.BILL_STATUSES, "list_limit": bills.LIST_LIMIT,
+                               "sends_from_phone": messaging.sends_from_users_phone(), "waiting_count": 0}
     try:
+        context["waiting_count"] = messaging.waiting_count(db)
         context["periods"] = bills.bill_periods(db)
         if month is None and context["periods"]:
             # nothing chosen yet: the newest month with bills

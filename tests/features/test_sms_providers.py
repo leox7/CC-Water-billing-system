@@ -191,6 +191,27 @@ def test_a_test_that_forgets_the_stand_in_cannot_reach_africastalking():
                                  "then press Send again.")
 
 
+# ---- phone ----
+
+def test_only_the_phone_backend_sends_from_the_users_phone():
+    assert providers.sends_from_users_phone(settings("phone")) is True
+    assert providers.sends_from_users_phone(settings("console")) is False
+    assert providers.sends_from_users_phone(settings("africastalking")) is False
+
+
+def test_the_phone_backend_never_sends_from_the_server(monkeypatch):
+    # SMS-14: with the phone method nothing leaves the server. Calling send_sms with it is a bug,
+    # which goes to the one broad catch in messaging/service.py instead of looking sent.
+    reached = []
+    monkeypatch.setattr(providers, "send_with_africastalking", lambda *args, **kwargs: reached.append("at"))
+    monkeypatch.setattr(providers, "write_to_console", lambda *args: reached.append("console"))
+
+    with pytest.raises(ValueError, match="SMS_BACKEND=phone"):
+        providers.send_sms(settings("phone"), "254722123456", "Hi")
+
+    assert reached == []
+
+
 def test_tests_run_with_the_console_backend():
     from app.core.config import get_settings
 

@@ -58,6 +58,9 @@ EVENT_LEVELS = {
     "sms.resend_requested": "info",
     "sms.send_blocked": "warning",
     "sms.resend_refused": "warning",
+    "sms.queued": "info",
+    "sms.marked_sent": "info",
+    "sms.cancelled": "info",
     # payments
     "payment.recorded": "info",
     "payment.rejected": "warning",

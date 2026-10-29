@@ -1,0 +1,91 @@
+/* The Messages to send screen. Buttons, cards, messages and the empty state come from components.css. */
+
+.to-send-steps {
+  margin-bottom: var(--space-6);
+  max-width: 640px;
+}
+
+/* The note about computers shows only where there is a mouse, which usually means a computer */
+.to-send-computer-note {
+  display: none;
+  margin-bottom: var(--space-4);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .to-send-computer-note {
+    display: block;
+  }
+}
+
+.to-send-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.to-send-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.to-send-head .card-title {
+  margin: 0;
+}
+
+/* "Bill" or "Correction": a small neutral chip, never a status colour */
+.message-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-pill);
+}
+
+.to-send-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-8);
+  margin-top: var(--space-3);
+}
+
+.to-send-facts dt {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.to-send-facts dd {
+  font-weight: 600;
+}
+
+.to-send-card .message {
+  margin-top: var(--space-4);
+}
+
+.to-send-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 767px) {
+  /* one action per line, full width, Send by SMS first and largest to tap */
+  .to-send-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .to-send-actions .button,
+  .to-send-actions form {
+    width: 100%;
+  }
+}

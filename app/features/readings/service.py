@@ -30,6 +30,7 @@ from app.core.templating import period_label, plain_number
 from app.core.validation import clean_text, parse_money
 from app.features.audit import service as audit
 from app.features.bills import service as bills
+from app.features.messaging.service import MessageNotQueuedError
 from app.models import Bill, Customer, MeterReading, User
 
 CENTS = Decimal("0.01")
@@ -54,7 +55,8 @@ class ReadingResult:
     reading: MeterReading
     bill: Bill
     customer: Customer
-    # the SMS: sent, failed or blocked (the daily limit, SMS-S3)
+    # the SMS: sent, failed or blocked (the daily limit, SMS-S3); with the phone method ready,
+    # or not_queued when the ready message could not be written (SMS-14)
     sms_status: str
     # for a correction, which of the three cases ran
     correction_case: str | None = None
@@ -634,7 +636,7 @@ def _save_reading_and_bill(db: Session, actor: User, customer: Customer,
 
 
 def _send_sms(db: Session, actor: User, bill: Bill, message_type: str) -> str:
-    """Sends after the data is saved. Returns sent, failed or blocked."""
+    """Sends after the data is saved. Returns sent, failed, ready, blocked or not_queued."""
     try:
         if message_type == "correction":
             return bills.send_correction_sms(db, actor, bill).status
@@ -643,6 +645,10 @@ def _send_sms(db: Session, actor: User, bill: Bill, message_type: str) -> str:
         # SMS-S3: the limit was reached and recorded as sms.send_blocked. The reading and the
         # bill are saved, and the SMS can be sent again from the bill tomorrow.
         return "blocked"
+    except MessageNotQueuedError:
+        # SMS-14: the reading and bill are saved, so this is not a 500 page. The error is
+        # already logged with its stack trace and recorded as system.error.
+        return "not_queued"
 
 
 def _refused(db: Session, actor: User, customer: Customer, typed: Mapping[str, str], error: AppError,

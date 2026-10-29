@@ -62,6 +62,14 @@ def test_a_message_keeps_its_row_when_the_bill_is_deleted():
     assert MessageLog.__table__.c.bill_id.nullable is True
 
 
+def test_who_marked_a_message_sent_is_a_plain_link_with_no_cascade():
+    # SMS-17, AUTH-4: the member is deactivated, never deleted, so nothing is emptied or removed
+    foreign_key = next(iter(MessageLog.__table__.c.sent_by_user_id.foreign_keys))
+    assert foreign_key.column.table.name == "users"
+    assert foreign_key.ondelete is None
+    assert MessageLog.__table__.c.sent_by_user_id.nullable is True
+
+
 def test_audit_log_has_no_foreign_keys():
     assert AuditLog.__table__.foreign_keys == set()
 

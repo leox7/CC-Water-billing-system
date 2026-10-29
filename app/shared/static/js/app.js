@@ -137,6 +137,53 @@ window.addEventListener("pageshow", function () {
   });
 });
 
+// Copy message on the Messages to send screen (SMS-16): <button data-copy-text="...">. The
+// text was built by the server. The clipboard API needs HTTPS, so over plain http (a phone
+// testing on the local network) the older copy command is used instead.
+document.addEventListener("click", function (event) {
+  var button = event.target.closest("[data-copy-text]");
+  if (!button) {
+    return;
+  }
+  var text = button.dataset.copyText;
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(function () {
+      showCopied(button);
+    }, function () {
+      copyWithTextArea(button, text);
+    });
+    return;
+  }
+  copyWithTextArea(button, text);
+});
+
+function copyWithTextArea(button, text) {
+  var area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.className = "visually-hidden";
+  document.body.appendChild(area);
+  area.select();
+  var copied = document.execCommand("copy");
+  area.remove();
+  if (copied) {
+    showCopied(button);
+    return;
+  }
+  button.textContent = "Could not copy";
+}
+
+// "Copied" on the button for two seconds, and read out by screen readers
+function showCopied(button) {
+  var status = button.closest("article").querySelector("[data-copy-status]");
+  button.textContent = "Copied";
+  status.textContent = "Message copied.";
+  setTimeout(function () {
+    button.textContent = "Copy message";
+    status.textContent = "";
+  }, 2000);
+}
+
 // The service worker that makes the app installable (sw.js). Browsers allow one only over
 // HTTPS or on localhost; where it cannot start, the app works as before, just not installable.
 if ("serviceWorker" in navigator) {

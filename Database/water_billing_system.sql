@@ -3,7 +3,8 @@
 -- Written from docs/PRD.md section 6, docs/AUDIT_LOG.md section 3 and
 -- docs/DEPLOYMENT.md. The runnable source of truth is the Alembic migrations
 -- in alembic/versions. This file is regenerated from them and matches the
--- schema at head (migration 0003: a failed SMS keeps its failure reason).
+-- schema at head (migration 0004: the phone method's ready and cancelled statuses,
+-- and who marked a message sent).
 --
 -- MySQL 8.0, utf8mb4. Money columns are DECIMAL, never float.
 
@@ -104,16 +105,20 @@ CREATE TABLE messages_log (
   customer_id          INT NOT NULL,
   message_type         ENUM('bill','correction') NOT NULL,
   content              TEXT NOT NULL,
-  status               ENUM('pending','sent','failed') NOT NULL DEFAULT 'pending',
+  -- SMS-14, SMS-20: ready and cancelled are the phone method's (migration 0004)
+  status               ENUM('pending','sent','failed','ready','cancelled') NOT NULL DEFAULT 'pending',
   provider_message_id  VARCHAR(100) NULL,
   created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   -- SMS-3: a plain reason chosen by the app, empty unless the message failed (migration 0003)
   failure_reason       VARCHAR(255) NULL,
+  -- SMS-17: who marked a phone-method message sent; no cascade, AUTH-4 (migration 0004)
+  sent_by_user_id      INT NULL,
   INDEX idx_messages_bill (bill_id, created_at),
   INDEX idx_messages_customer (customer_id),
   CONSTRAINT fk_messages_bill     FOREIGN KEY (bill_id)     REFERENCES bills (bill_id) ON DELETE SET NULL,
-  CONSTRAINT fk_messages_customer FOREIGN KEY (customer_id) REFERENCES customers (customer_id)
+  CONSTRAINT fk_messages_customer FOREIGN KEY (customer_id) REFERENCES customers (customer_id),
+  CONSTRAINT fk_messages_sent_by  FOREIGN KEY (sent_by_user_id) REFERENCES users (user_id)
 );
 
 -- Developer only. No foreign keys on purpose (AUDIT_LOG.md section 3), so a

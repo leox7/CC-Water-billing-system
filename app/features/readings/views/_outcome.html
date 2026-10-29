@@ -3,6 +3,8 @@
   and a way to the bill. A failed or blocked SMS is a warning with a way forward (section 9).
   Needs `result` (ReadingResult), `full_name`, `outcome_start` ("Reading saved." or
   "Reading corrected.") and, for a correction in place, `sms_kind` = "correction".
+  With the phone method (SMS-14) the message is ready rather than sent, and `waiting_count`
+  gives the number on the "Messages to send" link.
 #}
 {% from "macros/icons.html" import icon %}
 {% set bill = result.bill %}
@@ -10,6 +12,17 @@
 <div class="message message-success" role="status">
   {{ icon("circle-check", 20) }}
   <div class="message-text">{{ outcome_start }} {% if sms_kind == "correction" %}A correction SMS was sent to {{ full_name }}.{% else %}The bill was sent to {{ full_name }}.{% endif %}</div>
+</div>
+{% elif result.sms_status == "ready" %}
+<div class="message message-success" role="status">
+  {{ icon("circle-check", 20) }}
+  <div class="message-text">{{ outcome_start }} {% if sms_kind == "correction" %}The correction is ready to send.{% else %}The bill is ready to send.{% endif %}
+    <a href="/messages/to-send">Messages to send ({{ waiting_count }})</a></div>
+</div>
+{% elif result.sms_status == "not_queued" %}
+<div class="message message-warning" role="status">
+  {{ icon("alert-circle", 20) }}
+  <div class="message-text">{{ outcome_start }} The SMS could not be prepared. Open the bill and press Send again.</div>
 </div>
 {% elif result.sms_status == "failed" %}
 <div class="message message-warning" role="status">

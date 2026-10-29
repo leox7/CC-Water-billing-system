@@ -3,6 +3,9 @@ built from records that are never saved."""
 
 import math
 from decimal import Decimal
+from urllib.parse import unquote
+
+import pytest
 
 from app.features.messaging import templates
 from app.models import Bill, Customer, MeterReading
@@ -158,3 +161,66 @@ def test_the_longest_correction_sms_stays_within_three_segments():
                                     bill(units="654.25", balance="123456.50", paid="1000.00"), Decimal("208521.13"))
 
     assert segments(text) <= 3
+
+
+# ---- the sms: link for the phone method (SMS-16) ----
+
+def link_parts(link):
+    """The number and the decoded text of an sms: link."""
+    assert link.startswith("sms:")
+    number, body = link[len("sms:"):].split("?&body=", 1)
+    return number, unquote(body)
+
+
+def test_the_link_has_the_number_in_international_form_and_the_body_after_it():
+    link = templates.sms_link("254722123456", "Hi")
+
+    assert link == "sms:+254722123456?&body=Hi"
+
+
+def test_the_whole_bill_sms_survives_the_link_with_its_line_breaks():
+    text = templates.bill_sms(customer(), reading(), bill(balance="1200"))
+    link = templates.sms_link("254722123456", text)
+
+    number, body = link_parts(link)
+
+    assert number == "+254722123456"
+    assert body == text
+    # each line break is kept as %0A, never as a raw break or a + that some apps read as a space
+    assert link.count("%0A") == text.count("\n") == 9
+
+
+@pytest.mark.parametrize("text", [
+    "Line one\nLine two\r\nLine three",
+    "C&C H2O & sons",
+    "Meter #12",
+    "100% paid",
+    "1+1 = 2",
+    "He said \"pay\" and 'now'",
+    "a?b=c&body=evil",
+    "Ksh 2,100.50 / month; thanks!",
+])
+def test_special_characters_survive_the_link(text):
+    link = templates.sms_link("254722123456", text)
+
+    assert link_parts(link) == ("+254722123456", text)
+    # none of them can end the body early or start a second parameter
+    body = link.split("?&body=", 1)[1]
+    for raw in ("&", "#", "+", "\n", " ", '"', "'", "?", "="):
+        assert raw not in body
+
+
+def test_a_message_of_700_characters_survives_the_link():
+    text = ("C&C H2O 100% #1 + \"x\"\n" * 40)[:700]
+    assert len(text) == 700
+
+    assert link_parts(templates.sms_link("254722123456", text))[1] == text
+
+
+def test_the_longest_correction_sms_survives_the_link():
+    text = templates.correction_sms(customer(first_name="Bartholomew"), reading("99999.50", "100234.75"),
+                                    bill(units="235.25", rate="1250.50", service="1500", balance="1234567.89",
+                                         paid="250000"), Decimal("1234567.89"))
+
+    assert link_parts(templates.sms_link("254722123456", text))[1] == text
+

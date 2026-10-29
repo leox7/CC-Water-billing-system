@@ -21,8 +21,8 @@ venv/
 Thumbs.db
 
 # planning docs, mockups and AI-agent instructions: kept local only
-docs/
 *.md
+docs/
 .claude/
 
 # logs, scratch files and backups

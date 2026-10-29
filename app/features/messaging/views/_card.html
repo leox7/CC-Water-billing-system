@@ -1,0 +1,52 @@
+{#
+  One message waiting to be sent (SMS-15): the customer, Bill or Correction, the amount and the
+  number, and three actions. Send by SMS is a plain sms: link (SMS-16). Copy message puts the
+  same text on the clipboard (app.js). Mark as sent posts with htmx and the answer replaces
+  this card in place (SMS-17).
+  The text, link and fingerprint were built by the server from the bill as it is now; the
+  form sends back only the total and the fingerprint, never the text (SMS-S2).
+  Needs `card` (MessageToSend) and, when the bill changed, `card_error`.
+#}
+{% from "macros/icons.html" import icon %}
+{% set message_id = card.message.message_id %}
+{% set full_name = card.customer.first_name ~ " " ~ card.customer.last_name %}
+{% set local_number = "0" ~ card.customer.phone[3:] %}
+<article class="card to-send-card" id="message-{{ message_id }}" aria-labelledby="message-{{ message_id }}-name">
+  <div class="to-send-head">
+    <h2 class="card-title" id="message-{{ message_id }}-name">{{ full_name }}</h2>
+    <span class="message-chip">{{ "Correction" if card.message.message_type == "correction" else "Bill" }}</span>
+  </div>
+  <dl class="to-send-facts">
+    <div><dt>Amount due</dt><dd class="mono">{{ card.bill.total_due|ksh }}</dd></div>
+    <div><dt>Number</dt><dd class="mono">{{ local_number[:4] }} {{ local_number[4:7] }} {{ local_number[7:] }}</dd></div>
+  </dl>
+
+  {% if card_error %}
+  {# tabindex and autofocus: after the swap, focus lands on the warning, which is read out #}
+  <div class="message message-warning" role="alert" tabindex="-1" autofocus>
+    {{ icon("alert-circle", 20) }}
+    <div class="message-text">{{ card_error }} The message below has the new figures.</div>
+  </div>
+  {% endif %}
+
+  <div class="to-send-actions">
+    <a class="button button-primary" href="{{ card.link }}">{{ icon("send") }}Send by SMS</a>
+    <button class="button button-secondary" type="button" data-copy-text="{{ card.text }}">Copy message</button>
+    {# hx-disabled-elt and hx-sync="this:drop": a double tap cannot mark it twice (DESIGN_SYSTEM.md section 9) #}
+    <form method="post" action="/messages/{{ message_id }}/mark-sent"
+          hx-post="/messages/{{ message_id }}/mark-sent" hx-target="#message-{{ message_id }}" hx-swap="outerHTML"
+          hx-disabled-elt="find button[type=submit]" hx-sync="this:drop">
+      {{ csrf_field(request) }}
+      <input type="hidden" name="total_due" value="{{ card.bill.total_due }}">
+      <input type="hidden" name="fingerprint" value="{{ card.fingerprint }}">
+      <button class="button button-secondary" type="submit">
+        <span class="button-label">
+          <span>{{ icon("check") }}Mark as sent</span>
+          <span class="button-working">Saving...</span>
+        </span>
+      </button>
+    </form>
+  </div>
+  {# Copy message says "Copied" here, so a screen reader hears it #}
+  <p class="visually-hidden" role="status" data-copy-status></p>
+</article>

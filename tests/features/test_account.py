@@ -11,7 +11,7 @@ from app.core import security
 from app.core.errors import BusinessRuleError, ConflictError, NotFoundError, PermissionDeniedError
 from app.core.security import verify_password
 from app.features.account import service as account
-from app.models import AuditLog, Bill, Customer, MeterReading, Payment, User
+from app.models import AuditLog, Bill, Customer, MessageLog, MeterReading, Payment, User
 from tests.conftest import TEST_PASSWORD
 
 NEW_PASSWORD = "lake-forest-77"
@@ -47,6 +47,14 @@ def add_payment_by(db_session, member, reading_by):
     db_session.flush()
     db_session.add(Payment(bill_id=bill.bill_id, amount=Decimal("500"), payment_date=date(2026, 8, 25),
                            recorded_by=member.user_id))
+    db_session.flush()
+
+
+def add_marked_message_by(db_session, member, reading_by):
+    """An SMS the member marked as sent with the phone method (SMS-17)."""
+    reading = add_reading_by(db_session, reading_by)
+    db_session.add(MessageLog(customer_id=reading.customer_id, message_type="bill", content="text",
+                              status="sent", sent_by_user_id=member.user_id))
     db_session.flush()
 
 
@@ -211,18 +219,22 @@ def test_a_member_who_recorded_nothing_can_be_deleted(db_session, owner, member)
     assert row.details == {"user_id": member_id}
 
 
-@pytest.mark.parametrize("recorded", ["reading", "payment"])
+@pytest.mark.parametrize("recorded", ["reading", "payment", "marked message"])
 def test_a_member_who_recorded_a_reading_or_a_payment_is_never_deleted(db_session, owner, member, recorded):
+    # AUTH-4: marking an SMS as sent counts too, so who marked it is kept
     if recorded == "reading":
         add_reading_by(db_session, member)
-    else:
+    elif recorded == "payment":
         add_payment_by(db_session, member, reading_by=owner)
+    else:
+        add_marked_message_by(db_session, member, reading_by=owner)
 
     with pytest.raises(BusinessRuleError) as raised:
         account.delete_member(db_session, owner, member.user_id)
 
     assert raised.value.message == (
-        "Peter Test has recorded readings or payments, so the account cannot be deleted. Deactivate it instead."
+        "Peter Test has recorded readings or payments, or marked an SMS as sent, so the account cannot be deleted. "
+        "Deactivate it instead."
     )
     assert db_session.get(User, member.user_id) is not None
     assert audit_rows(db_session, "user.deleted") == []
