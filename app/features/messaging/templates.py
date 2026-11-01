@@ -15,7 +15,7 @@ from urllib.parse import quote
 from app.core.templating import ksh, money_figure, plain_number
 from app.models import Bill, Customer, MeterReading
 
-BUSINESS_LINE = "C&C H2O WATER SUPPLIES"
+BUSINESS_LINE = "C&C H2O SUPPLIES"
 PAYMENT_LINE = "Payments via Mpesa: 0722995388"
 
 

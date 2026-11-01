@@ -163,7 +163,7 @@ def test_a_sent_bill_is_corrected_in_place_with_a_correction_sms(db_session, own
     assert result.sms_status == "sent"
     phone, text = sms.sent[-1]
     # SMS-12: the full corrected bill
-    assert text.startswith("C&C H2O WATER SUPPLIES\nHi Mary,\nWe corrected your meter reading.\n"
+    assert text.startswith("C&C H2O SUPPLIES\nHi Mary,\nWe corrected your meter reading.\n"
                            "Previous Reading:120\nCurrent Reading:140\nConsumption (m3):20\n"
                            "Consumption(130ksh/m3):2,600\n")
     messages = db_session.scalars(select(MessageLog).where(MessageLog.bill_id == sent.bill.bill_id)

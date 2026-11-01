@@ -42,7 +42,7 @@ def test_the_bill_sms_without_a_balance_is_exactly_the_decided_text():
     text = templates.bill_sms(customer(), reading(), bill())
 
     assert text == (
-        "C&C H2O WATER SUPPLIES\n"
+        "C&C H2O SUPPLIES\n"
         "Hi Mary,\n"
         "Previous Reading:120\n"
         "Current Reading:135\n"
@@ -125,7 +125,7 @@ def test_the_correction_sms_is_the_full_corrected_bill():
     text = templates.correction_sms(customer(), reading(current="140.00"), bill(units="20.00"), Decimal("2750"))
 
     assert text == (
-        "C&C H2O WATER SUPPLIES\n"
+        "C&C H2O SUPPLIES\n"
         "Hi Mary,\n"
         "We corrected your meter reading.\n"
         "Previous Reading:120\n"

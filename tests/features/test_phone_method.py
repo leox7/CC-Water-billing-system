@@ -456,4 +456,4 @@ def test_the_list_holds_ready_messages_of_active_customers_oldest_first(db_sessi
 
     assert [card.bill.bill_id for card in cards] == [first.bill.bill_id, second.bill.bill_id]
     assert messaging.waiting_count(db_session) == 2
-    assert cards[0].link.startswith("sms:+254722123456?&body=C%26C%20H2O%20WATER%20SUPPLIES%0AHi%20Mary%2C")
+    assert cards[0].link.startswith("sms:+254722123456?&body=C%26C%20H2O%20SUPPLIES%0AHi%20Mary%2C")
