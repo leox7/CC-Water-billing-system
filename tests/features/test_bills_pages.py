@@ -298,4 +298,4 @@ def test_send_again_ignores_any_number_or_text_sent_with_it(as_member, failed_bi
 
     phone, text = sms.sent[0]
     assert phone == mary.phone
-    assert text.startswith("C&C H2O SUPPLIES\nHi Mary,") and "another number" not in text
+    assert text.startswith("C&C H2O SUPPLIES.\nHi Mary,") and "another number" not in text
